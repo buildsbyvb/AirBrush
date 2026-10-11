@@ -54,28 +54,113 @@ STYLES.forEach((s) => {
 });
 
 // ---------- colour swatches ----------
-const ROW1 = ["#000000", "#808080", "#800000", "#808000", "#008000", "#008080", "#000080", "#800080", "#808040", "#004040", "#0080ff", "#004080", "#8000ff", "#804000"];
-const ROW2 = ["#ffffff", "#c0c0c0", "#ff0000", "#ffff00", "#00ff00", "#00ffff", "#0000ff", "#ff00ff", "#ffff80", "#00ff80", "#80ffff", "#8080ff", "#ff0080", "#ff8040"];
-const COLORS = ROW1.flatMap((c, i) => [c, ROW2[i]]);
+const COLOR_GROUPS = [
+  { name: "Neutral",   colors: ["#000000", "#555555", "#9a9a9a", "#ffffff"] },
+  { name: "Primary",   colors: ["#ff0000", "#ffe600", "#0047ff"] },
+  { name: "Secondary", colors: ["#ff8000", "#1faa3c", "#8a2be2"] },
+  { name: "More",      colors: ["#ffb300", "#ff4500", "#9acd32", "#00a693", "#00d4ff", "#7ec8ff", "#001f7a", "#ff7eb6",
+                               "#ff00ff", "#c3a6ff", "#98f5c3", "#ffcba4", "#d4a017", "#7b4a1e", "#800000", "#808000"] },
+];
+const COLORS = COLOR_GROUPS.flatMap((g) => g.colors);
 const swatchBox = $("swatches");
-COLORS.forEach((c) => {
-  const d = document.createElement("div");
-  d.className = "swatch" + (c === color ? " active" : "");
-  d.style.background = c;
-  d.dataset.color = c;
-  d.onclick = () => setColor(c);
-  swatchBox.appendChild(d);
+COLOR_GROUPS.forEach((g) => {
+  const grp = document.createElement("div");
+  grp.className = "sw-group";
+  grp.innerHTML = `<div class="sw-name">${g.name}</div><div class="sw-row"></div>`;
+  g.colors.forEach((c) => {
+    const d = document.createElement("div");
+    d.className = "swatch" + (c === color ? " active" : "");
+    d.style.background = c;
+    d.dataset.color = c;
+    d.title = c;
+    d.onclick = () => setColor(c);
+    grp.querySelector(".sw-row").appendChild(d);
+  });
+  swatchBox.appendChild(grp);
 });
-function setColor(c) {
-  color = c;
-  $("colorPicker").value = c;
-  $("curColor").style.background = c;
+function setColor(c, fromWheel) {
+  color = c.toLowerCase();
+  $("curColor").style.background = color;
+  $("hexIn").value = color;
+  $("wheelPrev").style.background = color;
   document.querySelectorAll(".swatch").forEach((s) =>
-    s.classList.toggle("active", s.dataset.color === c.toLowerCase())
+    s.classList.toggle("active", s.dataset.color === color)
   );
+  if (!fromWheel) syncWheel(color);
   setTool("pen");
 }
-$("colorPicker").oninput = (e) => setColor(e.target.value);
+
+// ---------- custom colour wheel (hue around, saturation outwards, brightness slider) ----------
+const wheel = $("wheel"), wctx = wheel.getContext("2d");
+let wh = 0, ws = 1, wv = 1;   // hue 0-360, saturation 0-1, brightness 0-1
+function hsv2rgb(h, s, v) {
+  const f = (n) => { const k = (n + h / 60) % 6; return v - v * s * Math.max(Math.min(k, 4 - k, 1), 0); };
+  return [f(5), f(3), f(1)].map((x) => Math.round(x * 255));
+}
+const rgb2hex = (r, g, b) => "#" + [r, g, b].map((x) => x.toString(16).padStart(2, "0")).join("");
+function hex2hsv(hex) {
+  const r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let h = 0;
+  if (d) h = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: h * 60, s: mx ? d / mx : 0, v: mx };
+}
+function drawWheel() {
+  const N = wheel.width, R = N / 2;
+  const img = wctx.createImageData(N, N);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const dx = x - R + 0.5, dy = y - R + 0.5, d = Math.hypot(dx, dy);
+      if (d > R) continue;
+      const hue = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
+      const [r, g, b] = hsv2rgb(hue, d / R, wv);
+      const i = (y * N + x) * 4;
+      img.data[i] = r; img.data[i + 1] = g; img.data[i + 2] = b; img.data[i + 3] = 255;
+    }
+  }
+  wctx.putImageData(img, 0, 0);
+  const mx = R + Math.cos(wh * Math.PI / 180) * ws * (R - 1), my = R + Math.sin(wh * Math.PI / 180) * ws * (R - 1);
+  wctx.beginPath(); wctx.arc(mx, my, 8, 0, Math.PI * 2);
+  wctx.lineWidth = 3; wctx.strokeStyle = "#fff"; wctx.stroke();
+  wctx.lineWidth = 1; wctx.strokeStyle = "#000"; wctx.beginPath(); wctx.arc(mx, my, 9.5, 0, Math.PI * 2); wctx.stroke();
+}
+function syncWheel(hex) {
+  const v = hex2hsv(hex);
+  wh = v.h; ws = v.s; wv = Math.max(v.v, 0.1);
+  $("bright").value = Math.round(wv * 100);
+  drawWheel();
+}
+function wheelPick(e) {
+  const r = wheel.getBoundingClientRect(), R = r.width / 2;
+  const dx = e.clientX - r.left - R, dy = e.clientY - r.top - R;
+  wh = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
+  ws = Math.min(1, Math.hypot(dx, dy) / R);
+  drawWheel();
+  setColor(rgb2hex(...hsv2rgb(wh, ws, wv)), true);
+}
+let wheelDown = false;
+wheel.onpointerdown = (e) => { wheelDown = true; wheel.setPointerCapture(e.pointerId); wheelPick(e); };
+wheel.onpointermove = (e) => { if (wheelDown) wheelPick(e); };
+wheel.onpointerup = () => { wheelDown = false; };
+$("bright").oninput = (e) => {
+  wv = +e.target.value / 100;
+  drawWheel();
+  setColor(rgb2hex(...hsv2rgb(wh, ws, wv)), true);
+};
+$("hexIn").oninput = (e) => {
+  let v = e.target.value.trim();
+  if (v && v[0] !== "#") v = "#" + v;
+  if (/^#[0-9a-f]{6}$/i.test(v)) setColor(v);
+};
+$("wheelBtn").onclick = () => {
+  const pop = $("wheelPop");
+  pop.hidden = !pop.hidden;
+  if (!pop.hidden) syncWheel(color);
+};
+document.addEventListener("mousedown", (e) => {
+  if (!$("wheelPop").hidden && !e.target.closest(".custom-wrap")) $("wheelPop").hidden = true;
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("wheelPop").hidden = true; });
 
 // ---------- size / tool / undo / clear ----------
 $("size").oninput = (e) => { size = +e.target.value; $("sizeVal").textContent = size; };
@@ -151,71 +236,129 @@ function getGesture(lm) {
   return "none";
 }
 
-// One shared cursor for everything. The fingertip always moves the SAME on-screen cursor,
-// whether you are hovering over buttons (open palm) or drawing (one finger).
-// Over the canvas the cursor is the pen; wherever it is, that is where the pen touches.
-function moveCursor(lm, g, ratio, pointerMode) {
-  let fx = lm[8].x, fy = lm[8].y;                       // index fingertip in every mode
-  if (g === "erase") { fx = (lm[8].x + lm[12].x) / 2; fy = (lm[8].y + lm[12].y) / 2; }
-  const mx = 1 - fx, my = fy;                           // mirrored, like a mirror
-  const t = { x: clamp((mx - 0.12) / 0.76, 0, 1) * (innerWidth - 1), y: clamp((my - 0.1) / 0.75, 0, 1) * (innerHeight - 1) };
-  if (!pointerPos) pointerPos = t;                      // first frame: snap to the finger
-  else if (!pointerMode || sliderDrag || ratio > PINCH_FREEZE) {   // freeze while closing a pinch
-    const k = pointerMode ? 0.4 : 0.5;
-    pointerPos = { x: pointerPos.x + (t.x - pointerPos.x) * k, y: pointerPos.y + (t.y - pointerPos.y) * k };
-  }
+// ---------- hand skeleton overlay (drawn on top of the webcam picture) ----------
+const handCanvas = $("handCanvas"), handCtx = handCanvas.getContext("2d");
+const BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
+               [9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+const TIPS = [4, 8, 12, 16, 20];
+const GESTURE_LABEL = { draw: "DRAWING", erase: "ERASING", palm: "PAUSED", none: "TRACKING" };
+const MODE_TEXT = { draw: "Drawing", erase: "Erasing", palm: "Paused", none: "Ready" };
+
+function clearHand() { handCtx.clearRect(0, 0, W, H); }
+
+function drawHand(lm, g, score) {
+  const c = handCtx;
+  c.clearRect(0, 0, W, H);
+  const P = lm.map((p) => ({ x: (1 - p.x) * W, y: p.y * H }));   // mirrored like the video
+  c.save();
+  c.lineCap = "round"; c.lineJoin = "round";
+
+  // soft palm wash
+  c.beginPath();
+  [0, 1, 5, 9, 13, 17].forEach((i, k) => (k ? c.lineTo(P[i].x, P[i].y) : c.moveTo(P[i].x, P[i].y)));
+  c.closePath();
+  c.fillStyle = "rgba(232, 208, 154, 0.12)";
+  c.fill();
+
+  // glowing bones
+  c.shadowColor = "rgba(232, 208, 154, 0.95)"; c.shadowBlur = 10;
+  c.strokeStyle = "rgba(242, 236, 223, 0.92)"; c.lineWidth = 2.5;
+  c.beginPath();
+  BONES.forEach(([a, b]) => { c.moveTo(P[a].x, P[a].y); c.lineTo(P[b].x, P[b].y); });
+  c.stroke();
+
+  // joints (fingertips are larger and rose)
+  c.shadowBlur = 6;
+  P.forEach((p, i) => {
+    const tip = TIPS.includes(i);
+    c.beginPath(); c.arc(p.x, p.y, tip ? 5.5 : 3.5, 0, Math.PI * 2);
+    c.fillStyle = tip ? "#d98f98" : "#c2a066"; c.fill();
+    c.lineWidth = 1.5; c.strokeStyle = "#111b25"; c.stroke();
+  });
+  c.shadowBlur = 0;
+
+  // targeting crosshair on the drawing point
+  const t = g === "erase" ? { x: (P[8].x + P[12].x) / 2, y: (P[8].y + P[12].y) / 2 } : P[8];
+  c.setLineDash([4, 5]); c.lineWidth = 1; c.strokeStyle = "rgba(232, 208, 154, 0.6)";
+  c.beginPath();
+  c.moveTo(t.x - 30, t.y); c.lineTo(t.x + 30, t.y);
+  c.moveTo(t.x, t.y - 30); c.lineTo(t.x, t.y + 30);
+  c.stroke();
+  c.setLineDash([]);
+
+  // scanner corner brackets around the hand
+  const xs = P.map((p) => p.x), ys = P.map((p) => p.y), pad = 18;
+  const x0 = Math.max(2, Math.min(...xs) - pad), x1 = Math.min(W - 2, Math.max(...xs) + pad);
+  const y0 = Math.max(2, Math.min(...ys) - pad), y1 = Math.min(H - 2, Math.max(...ys) + pad);
+  const L = Math.max(8, Math.min(22, (x1 - x0) / 3, (y1 - y0) / 3));
+  c.strokeStyle = "#e8d09a"; c.lineWidth = 2;
+  c.beginPath();
+  [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]].forEach(([x, y, dx, dy]) => {
+    c.moveTo(x + dx * L, y); c.lineTo(x, y); c.lineTo(x, y + dy * L);
+  });
+  c.stroke();
+
+  // label tag
+  const label = `HAND ${score ? Math.round(score * 100) + "%" : ""}  /  ${GESTURE_LABEL[g] || "TRACKING"}`;
+  c.font = "600 12px Jost, Arial, sans-serif";
+  const tw = c.measureText(label).width + 14;
+  const ty = y0 > 24 ? y0 - 22 : y1 + 4;
+  c.fillStyle = "rgba(17, 27, 37, 0.82)"; c.fillRect(x0, ty, tw, 18);
+  c.strokeStyle = "rgba(232, 208, 154, 0.7)"; c.lineWidth = 1; c.strokeRect(x0 + 0.5, ty + 0.5, tw, 18);
+  c.fillStyle = "#e8d09a"; c.fillText(label, x0 + 7, ty + 13);
+  c.restore();
 }
 
-function showPen(g) {
-  hidePointer();
-  if (!pointerPos) return;
-  pointerEl.hidden = false;
-  pointerEl.classList.add("penmode");
-  pointerEl.classList.remove("pinched");
-  pointerEl.style.transform = `translate(${pointerPos.x}px, ${pointerPos.y}px)`;
-  const pen = pointerEl.querySelector(".pen");
-  pen.style.borderColor = (g === "erase" || tool === "eraser") ? "#ff3b30" : (g === "draw" ? color : "#ffffff");
+// ---------- cursor dot on the webcam and the canvas ----------
+function showCursor(p, gesture) {
+  for (const id of ["camCursor", "paintCursor"]) {
+    const el = $(id);
+    if (!p) { el.style.display = "none"; continue; }
+    el.style.display = "block";
+    el.style.left = (p.x / W) * 100 + "%";
+    el.style.top = (p.y / H) * 100 + "%";
+    el.style.borderColor =
+      gesture === "erase" ? "#ff3b30" : gesture === "draw" ? color : "#ffffff";
+  }
 }
+function setMode(m) { const el = $("modeLabel"); if (el.textContent !== m) el.textContent = m; }
+
+// ---------- main hand loop: gestures only draw. Buttons and colours use the mouse. ----------
+const SETTLE_MS = 320;   // after an open palm, wait this long before drawing starts (no accidental marks)
+let pointerExitTime = 0;
 
 function onResults(results) {
   const hands = results.multiHandLandmarks;
   if (!hands || hands.length === 0) {
-    current = null; lastPoint = null; pointerPos = null; hidePointer();
+    current = null; lastPoint = null; showCursor(null); clearHand(); setMode("No hand");
     if (drawEnabled) statusEl.textContent = "Show your hand to the camera";
     return;
   }
   const lm = hands[0];
-  const ratio = pinchRatio(lm);
-  updatePinch(ratio, lm);
-  const raw = pinching ? "pinch" : getGesture(lm);
-
+  const raw = getGesture(lm);
   if (raw === stableGesture) { gestureCount = 0; }
   else if (++gestureCount >= 3) { stableGesture = raw; gestureCount = 0; current = null; }
   const g = stableGesture;
+  const score = results.multiHandedness && results.multiHandedness[0] ? results.multiHandedness[0].score : null;
+  drawHand(lm, g, score);
 
-  // Open palm (or any hand while not drawing) = pointer mode: control the whole page with your fingertip
+  // drawing is paused while the "Done drawing" panel or the Album is open
+  if (!drawEnabled) { current = null; lastPoint = null; showCursor(null); setMode("Idle"); return; }
+
   const now = performance.now();
-  const pointerMode = !drawEnabled || g === "palm" || (g === "pinch" && now - lastPointerTime < 2000);
-  moveCursor(lm, g, ratio, pointerMode);
+  let fx = lm[8].x, fy = lm[8].y;
+  if (g === "erase") { fx = (lm[8].x + lm[12].x) / 2; fy = (lm[8].y + lm[12].y) / 2; }
+  const target = { x: (1 - fx) * W, y: fy * H };
+  lastPoint = lastPoint
+    ? { x: lastPoint.x + (target.x - lastPoint.x) * 0.5, y: lastPoint.y + (target.y - lastPoint.y) * 0.5 }
+    : target;
+  showCursor(lastPoint, g);
+  setMode(MODE_TEXT[g] || "Ready");
 
-  if (pointerMode) {
-    lastPointerTime = now;
+  if (g === "palm") {
     pointerExitTime = now;
-    current = null; lastPoint = null;
-    updatePointer(ratio);
-    return;
-  }
-  if (g === "draw" || g === "erase") lastPointerTime = 0;
-
-  // the cursor on screen decides where the pen touches the canvas
-  showPen(g);
-  const r = paintCanvas.getBoundingClientRect();
-  const inside = pointerPos.x >= r.left && pointerPos.x <= r.right && pointerPos.y >= r.top && pointerPos.y <= r.bottom;
-  lastPoint = inside ? { x: (pointerPos.x - r.left) / r.width * W, y: (pointerPos.y - r.top) / r.height * H } : null;
-
-  if (!inside) {
     current = null;
-    statusEl.textContent = "Move your finger over the canvas to draw";
+    statusEl.textContent = "Paused (open palm). Raise 1 finger to draw";
     return;
   }
 
@@ -241,81 +384,8 @@ function onResults(results) {
     statusEl.textContent = erase ? "Erasing" : "Drawing";
   } else {
     current = null;
-    statusEl.textContent = g === "palm" ? "Stopped (palm)" : "Waiting… raise 1 finger to draw";
+    statusEl.textContent = "Waiting… raise 1 finger to draw";
   }
-}
-
-// ================= Hand pointer: control the whole page with your fingertip =================
-// Open palm = pointer. Move your hand and items highlight. Pinch thumb + index = select.
-// If pinching feels too sensitive or too hard, tune these numbers.
-const PINCH_ON = 0.30, PINCH_OFF = 0.45, PINCH_FREEZE = 0.55, PINCH_REACH = 1.0;
-const TARGETS = "button, .swatch, .chip, .card:not(.nohover), input[type=range], [data-gesture]";
-const pointerEl = $("handPointer");
-const SETTLE_MS = 320;   // after the palm, wait this long before drawing starts (no accidental marks)
-let pointerExitTime = 0, pinchFrames = 0, hoverSince = 0, pointerPos = null, pinching = false, wasPinching = false, lastPointerTime = 0, hoverEl = null, sliderDrag = null;
-
-const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const hdist = (a, b) => Math.hypot((a.x - b.x) * W, (a.y - b.y) * H);
-const palmSize = (lm) => hdist(lm[0], lm[9]) || 1;
-const pinchRatio = (lm) => hdist(lm[4], lm[8]) / palmSize(lm);
-
-function updatePinch(ratio, lm) {
-  const reach = hdist(lm[8], lm[0]) / palmSize(lm);   // stops a closed fist counting as a pinch
-  if (!pinching) {
-    pinchFrames = (ratio < PINCH_ON && reach > PINCH_REACH) ? pinchFrames + 1 : 0;
-    if (pinchFrames >= 2) pinching = true;
-  } else if (ratio > PINCH_OFF) { pinching = false; pinchFrames = 0; }
-}
-function setHover(t) {
-  if (t === hoverEl) return;
-  if (hoverEl) hoverEl.classList.remove("hot", "pressed");
-  hoverEl = t;
-  hoverSince = performance.now();
-  if (hoverEl) hoverEl.classList.add("hot");
-}
-function targetAt(x, y) {
-  const el = document.elementFromPoint(x, y);
-  const t = el && el.closest(TARGETS);
-  return t && !t.disabled ? t : null;
-}
-function setSlider(el, x) {
-  const r = el.getBoundingClientRect();
-  const f = clamp((x - r.left) / r.width, 0, 1);
-  el.value = Math.round(+el.min + f * (+el.max - +el.min));
-  el.dispatchEvent(new Event("input", { bubbles: true }));
-}
-function activate(el) {
-  if (el.matches("input[type=range]")) { sliderDrag = el; setSlider(el, pointerPos.x); return; }
-  el.click();
-}
-function labelOf(el) {
-  return el.getAttribute("aria-label") || el.title || el.textContent.trim().slice(0, 30) ||
-    (el.dataset.color ? "colour " + el.dataset.color : "item");
-}
-function updatePointer(ratio) {
-  pointerEl.hidden = false;
-  pointerEl.classList.remove("penmode");
-  pointerEl.style.transform = `translate(${pointerPos.x}px, ${pointerPos.y}px)`;
-  pointerEl.classList.toggle("pinched", pinching);
-
-  if (sliderDrag && !pinching) sliderDrag = null;
-  if (sliderDrag) setSlider(sliderDrag, pointerPos.x);
-  else if (!pinching) setHover(targetAt(pointerPos.x, pointerPos.y));
-  if (hoverEl) hoverEl.classList.toggle("pressed", pinching);
-
-  if (pinching && !wasPinching && hoverEl && performance.now() - hoverSince > 150) activate(hoverEl);                                   // select
-  if (pinching && hoverEl && hoverEl.dataset.scroll) window.scrollBy(0, +hoverEl.dataset.scroll * 22); // hold to scroll
-  wasPinching = pinching;
-  setMode("Pointer");
-  statusEl.textContent = hoverEl ? "Pinch to select: " + labelOf(hoverEl) : "Pointer mode: hover over an item, then pinch to select";
-}
-function setMode(m) { const el = $("modeLabel"); if (el.textContent !== m) el.textContent = m; }
-function hidePointer() {
-  pointerEl.hidden = true;
-  setHover(null);
-  sliderDrag = null;
-  wasPinching = pinching;
-  setMode("Draw");
 }
 
 // confirm box that works with gestures (replaces the browser's confirm pop-up)
@@ -330,17 +400,8 @@ function askConfirm(msg) {
 }
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("dlg").hidden) $("dlgNo").click(); });
 
-// scroll buttons (hold with the mouse, or hold a pinch)
-document.querySelectorAll("[data-scroll]").forEach((b) => {
-  let timer;
-  const dir = +b.dataset.scroll, stop = () => clearInterval(timer);
-  b.onmousedown = () => { window.scrollBy(0, dir * 40); timer = setInterval(() => window.scrollBy(0, dir * 22), 30); };
-  b.onmouseup = stop; b.onmouseleave = stop;
-});
-setInterval(() => { $("scrollpad").hidden = document.documentElement.scrollHeight <= innerHeight + 4; }, 500);
-
 // front-page colour strip + current colour box
-COLORS.forEach((c) => { const i = document.createElement("i"); i.style.background = c; $("ornament").appendChild(i); });
+COLORS.slice(0, 28).forEach((c) => { const i = document.createElement("i"); i.style.background = c; $("ornament").appendChild(i); });
 $("curColor").style.background = color;
 
 // ---------- start camera + hand tracking ----------
