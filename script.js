@@ -481,21 +481,27 @@ $("genBtn").onclick = async () => {
   if (!currentFolder) return;
   const style = STYLES.find((s) => s.id === selectedStyle);
   const desc = $("desc").value.trim();
-  const aiPrompt =
-    "Turn the hand-drawn sketch in image 0 into a finished, high quality image. " +
-    "Keep the shapes, positions and layout of the drawn subject, and keep its colours where they make sense. " +
-    "The plain empty background of the sketch is just blank paper, not part of the picture. " +
-    `Style: ${style.prompt}. ` +
-    (desc
-      ? `Scene and details to include: ${desc}. ` +
-        "Blend the drawn subject and the scene together into ONE cohesive picture: the same lighting, colour harmony, shadows, reflections, scale and perspective, " +
-        "so the subject looks like it truly belongs in the scene and is not pasted on top of it. " +
-        "Apply the chosen style to the whole picture, including the subject. "
-      : "Fill the background with a fitting, natural setting that matches the subject. ") +
-    "Do not add any text or watermark.";
-  const hordePrompt =
-    (desc ? desc + ", " : "") +
-    `${style.prompt}, based on a simple hand-drawn sketch, same shapes and composition, high quality`;
+  const keepDrawing =
+    "Image 0 is a hand-drawn sketch and it is the main subject. " +
+    "The drawn subject must stay EXACTLY as the person drew it: the same shapes, proportions, position, size and colours. " +
+    "Do not redesign, replace, move, add to or remove parts of the drawn subject. ";
+
+  const aiPrompt = desc
+    ? "Edit image 0. " + keepDrawing +
+      `Render the drawn subject in this style: ${style.prompt}. ` +
+      `Then add the following into the same picture, around and together with the drawn subject, without changing the subject itself: ${desc}. ` +
+      "Blend the added parts naturally with matching lighting, shadows, scale and perspective, all in the same style. " +
+      "Never create a new picture from the description alone: the drawn subject must clearly be the one from image 0. " +
+      "Do not add any text or watermark."
+    : "Edit image 0. " + keepDrawing +
+      `Only change how it is rendered, in this style: ${style.prompt}. ` +
+      "Put it on a plain, clean white background like a blank painting canvas. " +
+      "Add no other objects, no scenery and no extra background details. " +
+      "Do not add any text or watermark.";
+
+  const hordePrompt = desc
+    ? `${style.prompt}, the same drawn subject as in the sketch, same shapes and position, with ${desc}, high quality`
+    : `${style.prompt}, the same drawn subject as in the sketch, same shapes and position, plain white background, high quality`;
 
   const btn = $("genBtn");
   btn.disabled = true;
