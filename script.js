@@ -343,16 +343,27 @@ $("micBtn").onclick = () => {
   $("micBtn").classList.add("active");
 };
 
-// ================= Generate image (free AI through Puter.js, no server needed) =================
-async function toDataUrl(src) {
-  if (src.startsWith("data:")) return src;
-  const blob = await (await fetch(src)).blob();
-  return await new Promise((resolve) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result);
-    r.readAsDataURL(blob);
+// ================= Generate image with Cloudflare Workers AI (free, fast) =================
+// Paste your Cloudflare Worker link below (see the setup steps). Ends with .workers.dev
+const WORKER_URL = "https://airbrush.buildsbyvb.workers.dev";
+
+async function generateWithCloudflare(sketchDataUrl, prompt) {
+  const image = await sketchToBase64(sketchDataUrl);   // sketch on white background, 512x384
+  const res = await fetch(WORKER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, image }),
   });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || !json.image) throw new Error(json.error || `Fast service error (${res.status})`);
+  return await toPngDataUrl(json.image);
 }
+
+// ================= Generate image (free AI through AI Horde, no server, no sign-in) =================
+// AI Horde is a free community service. "0000000000" is its public anonymous key.
+// (Optional: put your own free key from https://aihorde.net/register here for a faster queue.)
+const HORDE_KEY = "0000000000";
+const HORDE = "https://aihorde.net/api/v2";
 
 function errText(e) {
   if (!e) return "Unknown error";
@@ -360,58 +371,148 @@ function errText(e) {
   return e.message || (e.error && (e.error.message || e.error)) || JSON.stringify(e);
 }
 
-async function generateWithPuter(sketchDataUrl, prompt) {
-  if (!window.puter) throw new Error("The AI service did not load. Check your internet and reload the page.");
-  const base64 = sketchDataUrl.split(",")[1];
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  // Model names change over time, so we try a few until one works.
-  const attempts = [
-    { model: "google/gemini-2.5-flash-image" },
-    { model: "gemini-3.1-flash-image-preview" },
-    { model: "google/gemini-3-pro-image-preview" },
-    { provider: "gemini", model: "gemini-2.5-flash-image-preview" },
-  ];
+// Put the drawing on a white background (the canvas is transparent) and shrink it to 512x384.
+function sketchToBase64(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas");
+      c.width = 512; c.height = 384;
+      const x = c.getContext("2d");
+      x.fillStyle = "#ffffff";
+      x.fillRect(0, 0, 512, 384);
+      x.drawImage(img, 0, 0, 512, 384);
+      resolve(c.toDataURL("image/jpeg", 0.92).split(",")[1]);
+    };
+    img.onerror = () => reject(new Error("Could not read the drawing."));
+    img.src = dataUrl;
+  });
+}
 
-  let lastError = null;
-  for (const opts of attempts) {
-    try {
-      const img = await puter.ai.txt2img(prompt, {
-        ...opts,
-        input_image: base64,
-        input_image_mime_type: "image/png",
-      });
-      return await toDataUrl(img.src);
-    } catch (e) {
-      lastError = e;
-      const msg = errText(e).toLowerCase();
-      // only move on to the next model if this model name was the problem
-      if (!(msg.includes("not found") || msg.includes("model") || msg.includes("not supported"))) break;
+// Turn whatever Horde returns (link or base64 webp) into a PNG data URL.
+async function toPngDataUrl(img) {
+  let src = img;
+  if (!img.startsWith("http") && !img.startsWith("data:")) src = "data:image/webp;base64," + img;
+  const el = await new Promise((resolve, reject) => {
+    const i = new Image();
+    i.crossOrigin = "anonymous";
+    i.onload = () => resolve(i);
+    i.onerror = () => reject(new Error("Could not load the generated image."));
+    i.src = src;
+  });
+  const c = document.createElement("canvas");
+  c.width = el.naturalWidth; c.height = el.naturalHeight;
+  c.getContext("2d").drawImage(el, 0, 0);
+  return c.toDataURL("image/png");
+}
+
+// Pick a good Stable Diffusion 1.5 model that is online right now.
+async function pickModel() {
+  const preferred = ["Deliberate", "DreamShaper", "Realistic Vision V6.0 B1", "Anything v5", "stable_diffusion"];
+  try {
+    const r = await fetch(`${HORDE}/status/models?type=image`);
+    const list = await r.json();
+    const online = new Set(list.filter((m) => m.count > 0).map((m) => m.name));
+    for (const p of preferred) if (online.has(p)) return p;
+  } catch (e) { /* ignore, use default below */ }
+  return "stable_diffusion";
+}
+
+async function generateWithHorde(sketchDataUrl, prompt, onStatus) {
+  const source = await sketchToBase64(sketchDataUrl);
+  const model = await pickModel();
+
+  const body = {
+    prompt: prompt + " ### text, watermark, signature, blurry, deformed, low quality",
+    params: {
+      sampler_name: "k_euler_a",
+      cfg_scale: 7.5,
+      denoising_strength: 0.72,   // lower = stays closer to your drawing, higher = more AI freedom
+      width: 512,
+      height: 384,
+      steps: 28,
+      n: 1,
+      karras: true,
+    },
+    nsfw: false,
+    censor_nsfw: true,
+    models: [model],
+    source_image: source,
+    source_processing: "img2img",
+    r2: false,
+    shared: false,
+    slow_workers: true,
+  };
+
+  const start = await fetch(`${HORDE}/generate/async`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: HORDE_KEY },
+    body: JSON.stringify(body),
+  });
+  const startJson = await start.json().catch(() => ({}));
+  if (!start.ok || !startJson.id) {
+    throw new Error(startJson.message || `The free AI service refused the request (${start.status}).`);
+  }
+  const id = startJson.id;
+
+  // wait for the result (max ~6 minutes)
+  for (let i = 0; i < 120; i++) {
+    await sleep(3000);
+    const c = await (await fetch(`${HORDE}/generate/check/${id}`)).json();
+    if (c.faulted) throw new Error("The free AI service had a problem. Please click Generate again.");
+    if (c.done) break;
+    if (onStatus) onStatus(c);
+    if (i === 119) {
+      fetch(`${HORDE}/generate/status/${id}`, { method: "DELETE" }).catch(() => {});
+      throw new Error("It took too long (the free service is busy). Please try again in a minute.");
     }
   }
-  throw new Error(errText(lastError));
+
+  const res = await (await fetch(`${HORDE}/generate/status/${id}`)).json();
+  const gen = res.generations && res.generations[0];
+  if (!gen || !gen.img) throw new Error("No image came back. Please click Generate again.");
+  if (gen.censored) throw new Error("The AI blocked this image. Try a different description.");
+  return await toPngDataUrl(gen.img);
 }
 
 $("genBtn").onclick = async () => {
   if (!currentFolder) return;
   const style = STYLES.find((s) => s.id === selectedStyle);
   const desc = $("desc").value.trim();
-  const prompt =
-    "This is a simple hand-drawn sketch. Turn it into a finished, high quality image. " +
+  const aiPrompt =
+    "Turn the hand-drawn sketch in image 0 into a finished, high quality image. " +
     "Keep the exact shapes, positions and layout of the sketch, and keep its colours where they make sense. " +
     `Style: ${style.prompt}. ` +
     (desc ? `Also include this (even if it is not in the sketch): ${desc}. ` : "") +
     "Do not add any text or watermark.";
+  const hordePrompt =
+    (desc ? desc + ", " : "") +
+    `${style.prompt}, based on a simple hand-drawn sketch, same shapes and composition, high quality`;
 
   const btn = $("genBtn");
   btn.disabled = true;
   const t0 = Date.now();
+  let queueInfo = "";
+  let hint = "(usually 5–20 seconds, keep this tab open)";
   const timer = setInterval(() => {
     $("genStatus").textContent =
-      `⏳ Generating… ${Math.round((Date.now() - t0) / 1000)}s (usually 10–60 seconds, keep this tab open)`;
+      `⏳ Generating… ${Math.round((Date.now() - t0) / 1000)}s ${queueInfo}${hint}`;
   }, 1000);
 
   try {
-    const image = await generateWithPuter(currentFolder.drawing, prompt);
+    let image;
+    try {
+      if (WORKER_URL.startsWith("PASTE")) throw new Error("Fast service not set up yet");
+      image = await generateWithCloudflare(currentFolder.drawing, aiPrompt);
+    } catch (fastErr) {
+      console.warn("Fast service failed, using free backup:", fastErr);
+      hint = "(fast service unavailable, using the free backup: 30 seconds to 3 minutes, keep this tab open)";
+      image = await generateWithHorde(currentFolder.drawing, hordePrompt, (c) => {
+        queueInfo = c.queue_position > 0 ? `· waiting in line: ${c.queue_position} ahead of you ` : "· drawing now ";
+      });
+    }
     clearInterval(timer);
     $("resultImg").src = image;
     $("resultImg").hidden = false;
@@ -423,7 +524,7 @@ $("genBtn").onclick = async () => {
   } catch (e) {
     clearInterval(timer);
     $("genStatus").textContent =
-      "❌ " + errText(e) + " — if a Puter sign-in window appeared, sign in (it is free) and click Generate again.";
+      "❌ " + errText(e) + " — you can click Generate image again.";
   }
   btn.disabled = false;
 };
