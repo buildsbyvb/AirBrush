@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AirBrush</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+  <script src="https://js.puter.com/v2/"></script>
+</head>
+<body>
+
+  <!-- ===== FRONT PAGE ===== -->
+  <section id="landing">
+    <div class="hero">
+      <div class="logo">🖌️</div>
+      <h1>AirBrush</h1>
+      <p class="tagline">Draw in the air. Just use your hand.</p>
+      <button id="startBtn" class="big-btn">Get Started</button>
+    </div>
+  </section>
+
+  <!-- ===== APP ===== -->
+  <section id="app" hidden>
+
+    <nav class="topbar">
+      <div class="brand">🖌️ AirBrush</div>
+      <button id="tabDraw" class="tab active">🎨 Draw</button>
+      <button id="tabAlbum" class="tab">📁 Album</button>
+    </nav>
+
+    <!-- ---------- DRAW VIEW ---------- -->
+    <div id="drawView">
+      <div class="workspace">
+        <aside class="tools">
+          <h3>Colours</h3>
+          <div id="swatches" class="swatches"></div>
+          <label class="picker">Custom colour
+            <input type="color" id="colorPicker" value="#ff3b30" />
+          </label>
+
+          <h3>Size: <span id="sizeVal">8</span></h3>
+          <input type="range" id="size" min="2" max="40" value="8" />
+
+          <h3>Tool</h3>
+          <div class="row">
+            <button id="penBtn" class="tool active">✏️ Pen</button>
+            <button id="eraserBtn" class="tool">🧽 Eraser</button>
+          </div>
+
+          <div class="row">
+            <button id="undoBtn" class="tool">↩️ Undo</button>
+            <button id="clearBtn" class="tool">🗑️ Clear</button>
+          </div>
+
+          <button id="doneBtn" class="big-btn small">✅ Done drawing</button>
+
+          <div class="help">
+            <b>Hand gestures</b><br />
+            ☝️ 1 finger = draw<br />
+            ✌️ 2 fingers = erase<br />
+            ✋ Palm = stop
+          </div>
+        </aside>
+
+        <main class="stage">
+          <div class="status" id="status">Starting camera…</div>
+          <div class="boxes">
+            <div class="box">
+              <div class="box-title">Webcam</div>
+              <div class="frame">
+                <video id="video" playsinline muted></video>
+                <canvas id="camCanvas" width="640" height="480"></canvas>
+                <div class="cursor" id="camCursor"></div>
+              </div>
+            </div>
+            <div class="box">
+              <div class="box-title">Canvas</div>
+              <div class="frame white">
+                <canvas id="paintCanvas" width="640" height="480"></canvas>
+                <div class="cursor" id="paintCursor"></div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      <!-- ---------- AFTER "DONE DRAWING" ---------- -->
+      <section id="finish" hidden>
+        <h2>Your drawing</h2>
+        <div class="finish-grid">
+          <div class="finish-left">
+            <img id="doneImg" alt="Your drawing" />
+            <div class="row">
+              <button id="downloadDrawing" class="tool">⬇️ Download drawing</button>
+              <button id="backToDraw" class="tool">✏️ Back to drawing</button>
+            </div>
+          </div>
+
+          <div class="finish-right">
+            <h3>Describe it (optional)</h3>
+            <div class="desc-wrap">
+              <textarea id="desc" rows="3" placeholder="e.g. a sunflower with a farm in the background"></textarea>
+              <button id="micBtn" class="tool mic" title="Speak your description">🎤</button>
+            </div>
+
+            <h3>Choose the output style</h3>
+            <div id="styles" class="chips"></div>
+
+            <button id="genBtn" class="big-btn small">✨ Generate image</button>
+            <div id="genStatus" class="status"></div>
+            <img id="resultImg" alt="Generated image" hidden />
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ---------- ALBUM VIEW ---------- -->
+    <div id="albumView" hidden>
+      <div id="albumList">
+        <h2>📁 Album</h2>
+        <p id="albumEmpty" class="status">No folders yet. Draw something and click “Done drawing”.</p>
+        <div id="albumGrid" class="album-grid"></div>
+      </div>
+
+      <div id="folderView" hidden>
+        <div class="row folder-head">
+          <button id="folderBack" class="tool">⬅️ Back to Album</button>
+          <button id="folderDelete" class="tool danger">🗑️ Delete folder</button>
+        </div>
+        <h2 id="folderTitle">Folder</h2>
+        <div id="folderItems" class="album-grid"></div>
+      </div>
+    </div>
+
+  </section>
+
+  <script src="script.js"></script>
+</body>
+</html>
