@@ -6,4 +6,4 @@ Draw in the air with your hand (webcam + MediaPipe Hands), then turn your drawin
 - 1 finger = draw, 2 fingers = erase, palm = stop
 - Done drawing -> description (type or voice) -> pick a style -> Generate
 - Album keeps every drawing and its generated images in your browser
-- AI images use free Puter.js (each visitor uses their own free Puter account)
+- AI images use free Cloudflare Workers AI (fast), with the free AI Horde service as an automatic backup
