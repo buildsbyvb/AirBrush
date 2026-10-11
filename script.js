@@ -481,6 +481,13 @@ $("genBtn").onclick = async () => {
   if (!currentFolder) return;
   const style = STYLES.find((s) => s.id === selectedStyle);
   const desc = $("desc").value.trim();
+  // When there is no description, avoid style words that make the AI invent a scene (like "photo").
+  const NO_SCENE_STYLE = {
+    realistic: "photorealistic rendering of the drawn object only, soft even studio lighting, sharp focus, highly detailed",
+    bw: "black and white, monochrome, high contrast, dramatic shading",
+  };
+  const stylePrompt = desc ? style.prompt : (NO_SCENE_STYLE[style.id] || style.prompt);
+
   const keepDrawing =
     "Image 0 is a hand-drawn sketch and it is the main subject. " +
     "The drawn subject must stay EXACTLY as the person drew it: the same shapes, proportions, position, size and colours. " +
@@ -488,20 +495,21 @@ $("genBtn").onclick = async () => {
 
   const aiPrompt = desc
     ? "Edit image 0. " + keepDrawing +
-      `Render the drawn subject in this style: ${style.prompt}. ` +
+      `Render the drawn subject in this style: ${stylePrompt}. ` +
       `Then add the following into the same picture, around and together with the drawn subject, without changing the subject itself: ${desc}. ` +
       "Blend the added parts naturally with matching lighting, shadows, scale and perspective, all in the same style. " +
       "Never create a new picture from the description alone: the drawn subject must clearly be the one from image 0. " +
       "Do not add any text or watermark."
     : "Edit image 0. " + keepDrawing +
-      `Only change how it is rendered, in this style: ${style.prompt}. ` +
-      "Put it on a plain, clean white background like a blank painting canvas. " +
-      "Add no other objects, no scenery and no extra background details. " +
+      `Only change how the drawn subject is rendered, in this style: ${stylePrompt}. ` +
+      "IMPORTANT: keep the background of image 0 exactly as it is: a pure, plain, empty white background filling the whole picture, like a blank white painting canvas. " +
+      "There must be NO scenery, NO beach, NO sky, NO room, NO table or surface, NO hands, NO people, NO other objects and NO background details of any kind. " +
+      "Only the drawn subject, alone, on plain white. " +
       "Do not add any text or watermark.";
 
   const hordePrompt = desc
-    ? `${style.prompt}, the same drawn subject as in the sketch, same shapes and position, with ${desc}, high quality`
-    : `${style.prompt}, the same drawn subject as in the sketch, same shapes and position, plain white background, high quality`;
+    ? `${stylePrompt}, the same drawn subject as in the sketch, same shapes and position, with ${desc}, high quality`
+    : `${stylePrompt}, the same drawn subject as in the sketch, same shapes and position, isolated on a plain pure white background, nothing else, high quality`;
 
   const btn = $("genBtn");
   btn.disabled = true;
