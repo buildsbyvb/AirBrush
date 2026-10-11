@@ -149,3 +149,9 @@ h3 small { font: 400 14px var(--sans); color: var(--muted); margin-left: 6px; }
   #finish { margin: 6px 12px 44px; padding: 18px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+
+/* one shared cursor: arrow when hovering, ring when drawing */
+#handPointer .pen { position: absolute; left: -11px; top: -11px; width: 22px; height: 22px; border: 3px solid #fff; border-radius: 50%; box-shadow: 0 0 6px #000; display: none; }
+#handPointer.penmode svg { display: none; }
+#handPointer.penmode .pen { display: block; }
