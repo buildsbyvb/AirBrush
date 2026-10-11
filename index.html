@@ -60,8 +60,8 @@
             <legend>Hand gestures</legend>
             <p><b>1 finger</b> draws</p>
             <p><b>2 fingers</b> erase</p>
-            <p><b>Open palm</b> moves the pointer</p>
-            <p><b>Pinch</b> thumb and index to select</p>
+            <p><b>Open palm</b> pauses</p>
+            <p>Use the <b>mouse</b> for buttons and colours</p>
           </fieldset>
         </aside>
 
@@ -73,6 +73,7 @@
                 <div class="frame">
                   <video id="video" playsinline muted></video>
                   <canvas id="camCanvas" width="640" height="480"></canvas>
+                  <canvas id="handCanvas" width="640" height="480"></canvas>
                   <div class="cursor" id="camCursor"></div>
                 </div>
               </div>
@@ -89,9 +90,14 @@
           <div class="palette-bar">
             <div id="curColor" class="cur-color" title="Current colour"></div>
             <div id="swatches" class="swatches"></div>
-            <label class="picker">Custom
-              <input type="color" id="colorPicker" value="#ff0000" />
-            </label>
+            <div class="custom-wrap">
+              <button id="wheelBtn" class="tool" aria-haspopup="true"><span class="wheel-dot"></span>Custom colour</button>
+              <div id="wheelPop" class="wheel-pop" hidden>
+                <canvas id="wheel" width="200" height="200"></canvas>
+                <label class="bright">Brightness <input type="range" id="bright" min="10" max="100" value="100" /></label>
+                <div class="hexrow"><span id="wheelPrev"></span><input id="hexIn" maxlength="7" value="#ff0000" spellcheck="false" /></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -158,10 +164,7 @@
       <div id="modeLabel" class="cell">Draw</div>
     </footer>
 
-    <div id="scrollpad" class="scrollpad" hidden>
-      <button class="btn scroll" data-scroll="-1" aria-label="Scroll up" title="Hold to scroll up"><svg width="18" height="18" viewBox="0 0 14 14"><path d="M7 3l6 7H1z"/></svg></button>
-      <button class="btn scroll" data-scroll="1" aria-label="Scroll down" title="Hold to scroll down"><svg width="18" height="18" viewBox="0 0 14 14"><path d="M7 11L1 4h12z"/></svg></button>
-    </div>
+    
   </section>
 
   <!-- confirm box (replaces the browser pop-up so it can be used with gestures) -->
@@ -172,12 +175,7 @@
     </div>
   </div>
 
-  <!-- fingertip pointer, shown when you open your palm -->
-  <div id="handPointer" hidden aria-hidden="true">
-    <svg width="24" height="30" viewBox="0 0 12 15"><path d="M1 1v11l3-3 2.5 5 2-1L6 8h4.5z" fill="#fff" stroke="#000"/></svg>
-    <span class="ring"></span>
-    <span class="pen"></span>
-  </div>
+  
 
   <script src="script.js"></script>
 </body>
