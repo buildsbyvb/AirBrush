@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AirBrush</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
 </head>
@@ -11,15 +14,13 @@
 
   <!-- ===== FRONT PAGE ===== -->
   <section id="landing">
-    <div class="window welcome">
-      <div class="titlebar"><span class="title">Welcome to AirBrush</span><span class="tb" aria-hidden="true"><i></i><i></i><i></i></span></div>
-      <div class="welcome-body">
-        <h1>AirBrush</h1>
-        <p class="tagline">Draw in the air. Just use your hand.</p>
-        <div id="ornament" class="ornament" aria-hidden="true"></div>
-        <p class="fine">Allow camera access when asked. It is used only to track your hand.</p>
-        <button id="startBtn" class="btn primary">Get Started</button>
-      </div>
+    <div class="welcome">
+      <h1>AirBrush</h1>
+      <svg class="stroke" viewBox="0 0 400 24" aria-hidden="true"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#d98f98"/><stop offset="0.5" stop-color="#e8d09a"/><stop offset="1" stop-color="#8fb3a0"/></linearGradient></defs><path d="M6 14C70 4 120 20 200 12S330 6 394 13" fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round"/></svg>
+      <p class="tagline">Draw in the air. Just use your hand.</p>
+      <div id="ornament" class="ornament" aria-hidden="true"></div>
+      <button id="startBtn" class="btn primary">Get Started</button>
+      <p class="fine">Allow camera access when asked. It is used only to track your hand.</p>
     </div>
   </section>
 
@@ -27,7 +28,7 @@
   <section id="app" hidden>
 
     <header class="topbar">
-      <div class="titlebar"><span class="title">untitled - AirBrush</span><span class="tb" aria-hidden="true"><i></i><i></i><i></i></span></div>
+      <div class="brand">AirBrush</div>
       <nav class="menubar">
         <button id="tabDraw" class="tab active">Draw</button>
         <button id="tabAlbum" class="tab">Album</button>
@@ -96,8 +97,8 @@
       </div>
 
       <!-- ---------- AFTER "DONE DRAWING" ---------- -->
-      <section id="finish" class="window" hidden>
-        <div class="titlebar"><span class="title">Your drawing</span></div>
+      <section id="finish" class="panel" hidden>
+        <h2>Your drawing</h2>
         <div class="pane">
           <div class="finish-grid">
             <div class="finish-left">
@@ -158,8 +159,7 @@
 
   <!-- confirm box (replaces the browser pop-up so it can be used with gestures) -->
   <div id="dlg" class="overlay" hidden>
-    <div class="window dialog" role="dialog" aria-modal="true">
-      <div class="titlebar"><span class="title">AirBrush</span></div>
+    <div class="dialog" role="dialog" aria-modal="true">
       <div class="dlg-body"><span class="dlg-icon" aria-hidden="true">?</span><p id="dlgText"></p></div>
       <div class="dlg-btns"><button id="dlgYes" class="btn">Yes</button><button id="dlgNo" class="btn primary">No</button></div>
     </div>
