@@ -151,22 +151,36 @@ function getGesture(lm) {
   return "none";
 }
 
-function showCursor(p, gesture) {
-  for (const id of ["camCursor", "paintCursor"]) {
-    const el = $(id);
-    if (!p) { el.style.display = "none"; continue; }
-    el.style.display = "block";
-    el.style.left = (p.x / W) * 100 + "%";
-    el.style.top = (p.y / H) * 100 + "%";
-    el.style.borderColor =
-      gesture === "erase" ? "#ff3b30" : gesture === "draw" ? color : "#ffffff";
+// One shared cursor for everything. The fingertip always moves the SAME on-screen cursor,
+// whether you are hovering over buttons (open palm) or drawing (one finger).
+// Over the canvas the cursor is the pen; wherever it is, that is where the pen touches.
+function moveCursor(lm, g, ratio, pointerMode) {
+  let fx = lm[8].x, fy = lm[8].y;                       // index fingertip in every mode
+  if (g === "erase") { fx = (lm[8].x + lm[12].x) / 2; fy = (lm[8].y + lm[12].y) / 2; }
+  const mx = 1 - fx, my = fy;                           // mirrored, like a mirror
+  const t = { x: clamp((mx - 0.12) / 0.76, 0, 1) * (innerWidth - 1), y: clamp((my - 0.1) / 0.75, 0, 1) * (innerHeight - 1) };
+  if (!pointerPos) pointerPos = t;                      // first frame: snap to the finger
+  else if (!pointerMode || sliderDrag || ratio > PINCH_FREEZE) {   // freeze while closing a pinch
+    const k = pointerMode ? 0.4 : 0.5;
+    pointerPos = { x: pointerPos.x + (t.x - pointerPos.x) * k, y: pointerPos.y + (t.y - pointerPos.y) * k };
   }
+}
+
+function showPen(g) {
+  hidePointer();
+  if (!pointerPos) return;
+  pointerEl.hidden = false;
+  pointerEl.classList.add("penmode");
+  pointerEl.classList.remove("pinched");
+  pointerEl.style.transform = `translate(${pointerPos.x}px, ${pointerPos.y}px)`;
+  const pen = pointerEl.querySelector(".pen");
+  pen.style.borderColor = (g === "erase" || tool === "eraser") ? "#ff3b30" : (g === "draw" ? color : "#ffffff");
 }
 
 function onResults(results) {
   const hands = results.multiHandLandmarks;
   if (!hands || hands.length === 0) {
-    current = null; lastPoint = null; showCursor(null); hidePointer();
+    current = null; lastPoint = null; pointerPos = null; hidePointer();
     if (drawEnabled) statusEl.textContent = "Show your hand to the camera";
     return;
   }
@@ -181,24 +195,29 @@ function onResults(results) {
 
   // Open palm (or any hand while not drawing) = pointer mode: control the whole page with your fingertip
   const now = performance.now();
-  if (!drawEnabled || g === "palm" || (g === "pinch" && now - lastPointerTime < 2000)) {
+  const pointerMode = !drawEnabled || g === "palm" || (g === "pinch" && now - lastPointerTime < 2000);
+  moveCursor(lm, g, ratio, pointerMode);
+
+  if (pointerMode) {
     lastPointerTime = now;
     pointerExitTime = now;
-    current = null; lastPoint = null; showCursor(null);
-    updatePointer(lm, ratio);
+    current = null; lastPoint = null;
+    updatePointer(ratio);
     return;
   }
-  hidePointer();
   if (g === "draw" || g === "erase") lastPointerTime = 0;
 
-  let fx = lm[8].x, fy = lm[8].y;
-  if (g === "erase") { fx = (lm[8].x + lm[12].x) / 2; fy = (lm[8].y + lm[12].y) / 2; }
-  const target = { x: (1 - fx) * W, y: fy * H };
-  lastPoint = lastPoint
-    ? { x: lastPoint.x + (target.x - lastPoint.x) * 0.5, y: lastPoint.y + (target.y - lastPoint.y) * 0.5 }
-    : target;
+  // the cursor on screen decides where the pen touches the canvas
+  showPen(g);
+  const r = paintCanvas.getBoundingClientRect();
+  const inside = pointerPos.x >= r.left && pointerPos.x <= r.right && pointerPos.y >= r.top && pointerPos.y <= r.bottom;
+  lastPoint = inside ? { x: (pointerPos.x - r.left) / r.width * W, y: (pointerPos.y - r.top) / r.height * H } : null;
 
-  showCursor(lastPoint, g);
+  if (!inside) {
+    current = null;
+    statusEl.textContent = "Move your finger over the canvas to draw";
+    return;
+  }
 
   // just came from the open palm: show where the pen will start, but do not mark the canvas yet
   if (now - pointerExitTime < SETTLE_MS) {
@@ -233,7 +252,7 @@ const PINCH_ON = 0.30, PINCH_OFF = 0.45, PINCH_FREEZE = 0.55, PINCH_REACH = 1.0;
 const TARGETS = "button, .swatch, .chip, .card:not(.nohover), input[type=range], [data-gesture]";
 const pointerEl = $("handPointer");
 const SETTLE_MS = 320;   // after the palm, wait this long before drawing starts (no accidental marks)
-let pointerExitTime = 0, inPointer = false, pinchFrames = 0, hoverSince = 0, pointerPos = null, pinching = false, wasPinching = false, lastPointerTime = 0, hoverEl = null, sliderDrag = null;
+let pointerExitTime = 0, pinchFrames = 0, hoverSince = 0, pointerPos = null, pinching = false, wasPinching = false, lastPointerTime = 0, hoverEl = null, sliderDrag = null;
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const hdist = (a, b) => Math.hypot((a.x - b.x) * W, (a.y - b.y) * H);
@@ -273,16 +292,9 @@ function labelOf(el) {
   return el.getAttribute("aria-label") || el.title || el.textContent.trim().slice(0, 30) ||
     (el.dataset.color ? "colour " + el.dataset.color : "item");
 }
-function updatePointer(lm, ratio) {
-  // the middle of thumb + index stays put while you pinch, so the click lands where you aimed
-  const mx = 1 - (lm[4].x + lm[8].x) / 2, my = (lm[4].y + lm[8].y) / 2;
-  const t = { x: clamp((mx - 0.12) / 0.76, 0, 1) * (innerWidth - 1), y: clamp((my - 0.1) / 0.75, 0, 1) * (innerHeight - 1) };
-  if (!pointerPos || !inPointer) pointerPos = t;   // snap on entry, then smooth
-  else if (sliderDrag || ratio > PINCH_FREEZE) {      // freeze while closing the pinch (unless dragging the slider)
-    pointerPos = { x: pointerPos.x + (t.x - pointerPos.x) * 0.4, y: pointerPos.y + (t.y - pointerPos.y) * 0.4 };
-  }
-  inPointer = true;
+function updatePointer(ratio) {
   pointerEl.hidden = false;
+  pointerEl.classList.remove("penmode");
   pointerEl.style.transform = `translate(${pointerPos.x}px, ${pointerPos.y}px)`;
   pointerEl.classList.toggle("pinched", pinching);
 
@@ -299,7 +311,6 @@ function updatePointer(lm, ratio) {
 }
 function setMode(m) { const el = $("modeLabel"); if (el.textContent !== m) el.textContent = m; }
 function hidePointer() {
-  inPointer = false;
   pointerEl.hidden = true;
   setHover(null);
   sliderDrag = null;
