@@ -111,6 +111,8 @@ textarea::placeholder { color: var(--muted); }
 .mic { flex: 0 0 58px; }
 .mic.active { background: rgba(217, 143, 152, 0.4); border-color: var(--rose); }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+h3 small { font: 400 14px var(--sans); color: var(--muted); margin-left: 6px; }
+.hint { font-size: 13px; color: var(--muted); margin-top: -6px; }
 .msg { margin: 4px 0; font: italic 500 19px var(--serif); color: var(--gold-lt); }
 
 /* ---------- album: framed prints ---------- */
