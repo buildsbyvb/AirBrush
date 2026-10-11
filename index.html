@@ -11,104 +11,117 @@
 
   <!-- ===== FRONT PAGE ===== -->
   <section id="landing">
-    <div class="hero">
-      <div class="logo">🖌️</div>
-      <h1>AirBrush</h1>
-      <p class="tagline">Draw in the air. Just use your hand.</p>
-      <button id="startBtn" class="big-btn">Get Started</button>
+    <div class="window welcome">
+      <div class="titlebar"><span class="title">Welcome to AirBrush</span><span class="tb" aria-hidden="true"><i></i><i></i><i></i></span></div>
+      <div class="welcome-body">
+        <h1>AirBrush</h1>
+        <p class="tagline">Draw in the air. Just use your hand.</p>
+        <div id="ornament" class="ornament" aria-hidden="true"></div>
+        <p class="fine">Allow camera access when asked. It is used only to track your hand.</p>
+        <button id="startBtn" class="btn primary">Get Started</button>
+      </div>
     </div>
   </section>
 
   <!-- ===== APP ===== -->
   <section id="app" hidden>
 
-    <nav class="topbar">
-      <div class="brand">🖌️ AirBrush</div>
-      <button id="tabDraw" class="tab active">🎨 Draw</button>
-      <button id="tabAlbum" class="tab">📁 Album</button>
-    </nav>
+    <header class="topbar">
+      <div class="titlebar"><span class="title">untitled - AirBrush</span><span class="tb" aria-hidden="true"><i></i><i></i><i></i></span></div>
+      <nav class="menubar">
+        <button id="tabDraw" class="tab active">Draw</button>
+        <button id="tabAlbum" class="tab">Album</button>
+      </nav>
+    </header>
 
     <!-- ---------- DRAW VIEW ---------- -->
     <div id="drawView">
       <div class="workspace">
         <aside class="tools">
-          <h3>Colours</h3>
-          <div id="swatches" class="swatches"></div>
-          <label class="picker">Custom colour
-            <input type="color" id="colorPicker" value="#ff3b30" />
-          </label>
+          <fieldset>
+            <legend>Tools</legend>
+            <div class="toolgrid">
+              <button id="penBtn" class="tool active"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 14l1-4 8-8 3 3-8 8z" fill="#f5c542" stroke="#000"/><path d="M2 14l1-4 3 3z" fill="#f2c9a0" stroke="#000"/></svg>Pen</button>
+              <button id="eraserBtn" class="tool"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 10L8 4l6 5-5 5H5z" fill="#f08c8c" stroke="#000" stroke-linejoin="round"/></svg>Eraser</button>
+              <button id="undoBtn" class="tool"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M4 6h6a3 3 0 010 6H6M6 3L3 6l3 3" fill="none" stroke="#000" stroke-width="1.6"/></svg>Undo</button>
+              <button id="clearBtn" class="tool"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="#b00000" stroke-width="2"/></svg>Clear</button>
+            </div>
+          </fieldset>
 
-          <h3>Size: <span id="sizeVal">8</span></h3>
-          <input type="range" id="size" min="2" max="40" value="8" />
+          <fieldset>
+            <legend>Size: <span id="sizeVal">8</span></legend>
+            <input type="range" id="size" min="2" max="40" value="8" />
+          </fieldset>
 
-          <h3>Tool</h3>
-          <div class="row">
-            <button id="penBtn" class="tool active">✏️ Pen</button>
-            <button id="eraserBtn" class="tool">🧽 Eraser</button>
-          </div>
+          <button id="doneBtn" class="btn primary wide">Done drawing</button>
 
-          <div class="row">
-            <button id="undoBtn" class="tool">↩️ Undo</button>
-            <button id="clearBtn" class="tool">🗑️ Clear</button>
-          </div>
-
-          <button id="doneBtn" class="big-btn small">✅ Done drawing</button>
-
-          <div class="help">
-            <b>Hand gestures</b><br />
-            ☝️ 1 finger = draw<br />
-            ✌️ 2 fingers = erase<br />
-            ✋ Palm = stop
-          </div>
+          <fieldset class="help">
+            <legend>Hand gestures</legend>
+            <p><b>1 finger</b> draws</p>
+            <p><b>2 fingers</b> erase</p>
+            <p><b>Open palm</b> moves the pointer</p>
+            <p><b>Pinch</b> thumb and index to select</p>
+          </fieldset>
         </aside>
 
-        <main class="stage">
-          <div class="status" id="status">Starting camera…</div>
-          <div class="boxes">
-            <div class="box">
-              <div class="box-title">Webcam</div>
-              <div class="frame">
-                <video id="video" playsinline muted></video>
-                <canvas id="camCanvas" width="640" height="480"></canvas>
-                <div class="cursor" id="camCursor"></div>
+        <div class="main-col">
+          <main class="stage">
+            <div class="boxes">
+              <div class="box">
+                <div class="box-title">Webcam</div>
+                <div class="frame">
+                  <video id="video" playsinline muted></video>
+                  <canvas id="camCanvas" width="640" height="480"></canvas>
+                  <div class="cursor" id="camCursor"></div>
+                </div>
+              </div>
+              <div class="box">
+                <div class="box-title">Canvas</div>
+                <div class="frame white">
+                  <canvas id="paintCanvas" width="640" height="480"></canvas>
+                  <div class="cursor" id="paintCursor"></div>
+                </div>
               </div>
             </div>
-            <div class="box">
-              <div class="box-title">Canvas</div>
-              <div class="frame white">
-                <canvas id="paintCanvas" width="640" height="480"></canvas>
-                <div class="cursor" id="paintCursor"></div>
-              </div>
-            </div>
+          </main>
+
+          <div class="palette-bar">
+            <div id="curColor" class="cur-color" title="Current colour"></div>
+            <div id="swatches" class="swatches"></div>
+            <label class="picker">Custom
+              <input type="color" id="colorPicker" value="#ff0000" />
+            </label>
           </div>
-        </main>
+        </div>
       </div>
 
       <!-- ---------- AFTER "DONE DRAWING" ---------- -->
-      <section id="finish" hidden>
-        <h2>Your drawing</h2>
-        <div class="finish-grid">
-          <div class="finish-left">
-            <img id="doneImg" alt="Your drawing" />
-            <div class="row">
-              <button id="downloadDrawing" class="tool">⬇️ Download drawing</button>
-              <button id="backToDraw" class="tool">✏️ Back to drawing</button>
-            </div>
-          </div>
-
-          <div class="finish-right">
-            <h3>Describe it (optional)</h3>
-            <div class="desc-wrap">
-              <textarea id="desc" rows="3" placeholder="e.g. a sunflower with a farm in the background"></textarea>
-              <button id="micBtn" class="tool mic" title="Speak your description">🎤</button>
+      <section id="finish" class="window" hidden>
+        <div class="titlebar"><span class="title">Your drawing</span></div>
+        <div class="pane">
+          <div class="finish-grid">
+            <div class="finish-left">
+              <img id="doneImg" alt="Your drawing" />
+              <div class="row">
+                <button id="downloadDrawing" class="tool">Download drawing</button>
+                <button id="backToDraw" class="tool">Back to drawing</button>
+              </div>
             </div>
 
-            <h3>Choose the output style</h3>
-            <div id="styles" class="chips"></div>
+            <div class="finish-right">
+              <h3>Describe it (optional)</h3>
+              <div class="desc-wrap">
+                <textarea id="desc" rows="3" placeholder="e.g. a sunflower with a farm in the background"></textarea>
+                <button id="micBtn" class="tool mic" title="Speak your description" aria-label="Speak your description"><svg width="18" height="18" viewBox="0 0 16 16"><rect x="6" y="1" width="4" height="8" rx="2" fill="#333"/><path d="M3 7a5 5 0 0010 0M8 12v3M5 15h6" fill="none" stroke="#333" stroke-width="1.5"/></svg></button>
+              </div>
 
-            <button id="genBtn" class="big-btn small">✨ Generate image</button>
-            <div id="genStatus" class="status"></div>
-            <img id="resultImg" alt="Generated image" hidden />
+              <h3>Choose the output style</h3>
+              <div id="styles" class="chips"></div>
+
+              <button id="genBtn" class="btn primary wide">Generate image</button>
+              <div id="genStatus" class="msg"></div>
+              <img id="resultImg" alt="Generated image" hidden />
+            </div>
           </div>
         </div>
       </section>
@@ -117,22 +130,46 @@
     <!-- ---------- ALBUM VIEW ---------- -->
     <div id="albumView" hidden>
       <div id="albumList">
-        <h2>📁 Album</h2>
-        <p id="albumEmpty" class="status">No folders yet. Draw something and click “Done drawing”.</p>
+        <h2>Album</h2>
+        <p id="albumEmpty" class="msg">No folders yet. Draw something and click "Done drawing".</p>
         <div id="albumGrid" class="album-grid"></div>
       </div>
 
       <div id="folderView" hidden>
         <div class="row folder-head">
-          <button id="folderBack" class="tool">⬅️ Back to Album</button>
-          <button id="folderDelete" class="tool danger">🗑️ Delete folder</button>
+          <button id="folderBack" class="tool">Back to Album</button>
+          <button id="folderDelete" class="tool">Delete folder</button>
         </div>
         <h2 id="folderTitle">Folder</h2>
         <div id="folderItems" class="album-grid"></div>
       </div>
     </div>
 
+    <footer class="statusbar">
+      <div id="status">Starting camera…</div>
+      <div id="modeLabel" class="cell">Draw</div>
+    </footer>
+
+    <div id="scrollpad" class="scrollpad" hidden>
+      <button class="btn scroll" data-scroll="-1" aria-label="Scroll up" title="Hold to scroll up"><svg width="18" height="18" viewBox="0 0 14 14"><path d="M7 3l6 7H1z"/></svg></button>
+      <button class="btn scroll" data-scroll="1" aria-label="Scroll down" title="Hold to scroll down"><svg width="18" height="18" viewBox="0 0 14 14"><path d="M7 11L1 4h12z"/></svg></button>
+    </div>
   </section>
+
+  <!-- confirm box (replaces the browser pop-up so it can be used with gestures) -->
+  <div id="dlg" class="overlay" hidden>
+    <div class="window dialog" role="dialog" aria-modal="true">
+      <div class="titlebar"><span class="title">AirBrush</span></div>
+      <div class="dlg-body"><span class="dlg-icon" aria-hidden="true">?</span><p id="dlgText"></p></div>
+      <div class="dlg-btns"><button id="dlgYes" class="btn">Yes</button><button id="dlgNo" class="btn primary">No</button></div>
+    </div>
+  </div>
+
+  <!-- fingertip pointer, shown when you open your palm -->
+  <div id="handPointer" hidden aria-hidden="true">
+    <svg width="24" height="30" viewBox="0 0 12 15"><path d="M1 1v11l3-3 2.5 5 2-1L6 8h4.5z" fill="#fff" stroke="#000"/></svg>
+    <span class="ring"></span>
+  </div>
 
   <script src="script.js"></script>
 </body>
