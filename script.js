@@ -183,6 +183,7 @@ function onResults(results) {
   const now = performance.now();
   if (!drawEnabled || g === "palm" || (g === "pinch" && now - lastPointerTime < 2000)) {
     lastPointerTime = now;
+    pointerExitTime = now;
     current = null; lastPoint = null; showCursor(null);
     updatePointer(lm, ratio);
     return;
@@ -198,6 +199,13 @@ function onResults(results) {
     : target;
 
   showCursor(lastPoint, g);
+
+  // just came from the open palm: show where the pen will start, but do not mark the canvas yet
+  if (now - pointerExitTime < SETTLE_MS) {
+    current = null;
+    statusEl.textContent = "Get ready: hold up one finger to draw";
+    return;
+  }
 
   if (g === "draw" || g === "erase") {
     const erase = g === "erase" || tool === "eraser";
@@ -224,7 +232,8 @@ function onResults(results) {
 const PINCH_ON = 0.30, PINCH_OFF = 0.45, PINCH_FREEZE = 0.55, PINCH_REACH = 1.0;
 const TARGETS = "button, .swatch, .chip, .card:not(.nohover), input[type=range], [data-gesture]";
 const pointerEl = $("handPointer");
-let pinchFrames = 0, hoverSince = 0, pointerPos = null, pinching = false, wasPinching = false, lastPointerTime = 0, hoverEl = null, sliderDrag = null;
+const SETTLE_MS = 320;   // after the palm, wait this long before drawing starts (no accidental marks)
+let pointerExitTime = 0, inPointer = false, pinchFrames = 0, hoverSince = 0, pointerPos = null, pinching = false, wasPinching = false, lastPointerTime = 0, hoverEl = null, sliderDrag = null;
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const hdist = (a, b) => Math.hypot((a.x - b.x) * W, (a.y - b.y) * H);
@@ -268,10 +277,11 @@ function updatePointer(lm, ratio) {
   // the middle of thumb + index stays put while you pinch, so the click lands where you aimed
   const mx = 1 - (lm[4].x + lm[8].x) / 2, my = (lm[4].y + lm[8].y) / 2;
   const t = { x: clamp((mx - 0.12) / 0.76, 0, 1) * (innerWidth - 1), y: clamp((my - 0.1) / 0.75, 0, 1) * (innerHeight - 1) };
-  if (!pointerPos) pointerPos = t;
+  if (!pointerPos || !inPointer) pointerPos = t;   // snap on entry, then smooth
   else if (sliderDrag || ratio > PINCH_FREEZE) {      // freeze while closing the pinch (unless dragging the slider)
     pointerPos = { x: pointerPos.x + (t.x - pointerPos.x) * 0.4, y: pointerPos.y + (t.y - pointerPos.y) * 0.4 };
   }
+  inPointer = true;
   pointerEl.hidden = false;
   pointerEl.style.transform = `translate(${pointerPos.x}px, ${pointerPos.y}px)`;
   pointerEl.classList.toggle("pinched", pinching);
@@ -289,6 +299,7 @@ function updatePointer(lm, ratio) {
 }
 function setMode(m) { const el = $("modeLabel"); if (el.textContent !== m) el.textContent = m; }
 function hidePointer() {
+  inPointer = false;
   pointerEl.hidden = true;
   setHover(null);
   sliderDrag = null;
@@ -408,6 +419,41 @@ function showView(name) {
 $("tabDraw").onclick = () => showView("draw");
 $("tabAlbum").onclick = () => showView("album");
 
+// ---------- which colours were used (sent to the AI so it keeps them) ----------
+const COLOR_NAMES = {
+  "#000000": "black", "#808080": "grey", "#800000": "dark red", "#808000": "olive green", "#008000": "dark green",
+  "#008080": "teal", "#000080": "navy blue", "#800080": "purple", "#808040": "khaki", "#004040": "dark teal",
+  "#0080ff": "sky blue", "#004080": "dark blue", "#8000ff": "violet", "#804000": "brown", "#c0c0c0": "light grey",
+  "#ff0000": "red", "#ffff00": "yellow", "#00ff00": "bright green", "#00ffff": "cyan", "#0000ff": "blue",
+  "#ff00ff": "magenta", "#ffff80": "pale yellow", "#00ff80": "mint green", "#80ffff": "light cyan",
+  "#8080ff": "periwinkle blue", "#ff0080": "pink", "#ff8040": "orange", "#ffc0cb": "light pink",
+};
+function nearestColorName(hex) {
+  const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [r, g, b] = rgb(hex);
+  let best = "", bd = Infinity;
+  for (const [h, n] of Object.entries(COLOR_NAMES)) {
+    const [x, y, z] = rgb(h);
+    const d = (r - x) ** 2 + (g - y) ** 2 + (b - z) ** 2;
+    if (d < bd) { bd = d; best = n; }
+  }
+  return best;
+}
+function usedColorNames() {
+  const w = {};
+  for (const st of strokes) {
+    if (st.erase || st.color.toLowerCase() === "#ffffff") continue;
+    w[st.color] = (w[st.color] || 0) + st.pts.length * st.size;
+  }
+  const total = Object.values(w).reduce((a, b) => a + b, 0) || 1;
+  const names = [];
+  Object.entries(w).sort((a, b) => b[1] - a[1]).forEach(([c, v]) => {
+    const n = nearestColorName(c);
+    if (v / total >= 0.08 && !names.includes(n)) names.push(n);
+  });
+  return names.slice(0, 4);
+}
+
 // ================= Done drawing =================
 $("doneBtn").onclick = async () => {
   if (strokes.length === 0) {
@@ -422,7 +468,7 @@ $("doneBtn").onclick = async () => {
   $("genStatus").textContent = "";
   $("finish").hidden = false;
 
-  currentFolder = { id: Date.now(), created: Date.now(), drawing: img, results: [] };
+  currentFolder = { id: Date.now(), created: Date.now(), drawing: img, results: [], colors: usedColorNames() };
   try { await dbPut(currentFolder); } catch (e) { console.error("Album save failed", e); }
 
   $("finish").scrollIntoView({ behavior: "smooth" });
@@ -439,24 +485,29 @@ $("backToDraw").onclick = () => {
 // ================= Voice input (free, built into Chrome / Edge) =================
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
-$("micBtn").onclick = () => {
-  if (!SR) {
-    $("genStatus").textContent = "Voice input works in Chrome or Edge. Please type instead.";
-    return;
-  }
-  if (recognition) { recognition.stop(); return; }
-  recognition = new SR();
-  recognition.lang = "en-US";
-  recognition.interimResults = false;
-  recognition.onresult = (e) => {
-    const text = e.results[0][0].transcript;
-    $("desc").value = ($("desc").value ? $("desc").value + " " : "") + text;
+function setupMic(btnId, boxId) {
+  const btn = $(btnId);
+  btn.onclick = () => {
+    if (!SR) {
+      $("genStatus").textContent = "Voice input works in Chrome or Edge. Please type instead.";
+      return;
+    }
+    if (recognition) { recognition.stop(); return; }
+    recognition = new SR();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.onresult = (e) => {
+      const text = e.results[0][0].transcript;
+      $(boxId).value = ($(boxId).value ? $(boxId).value + " " : "") + text;
+    };
+    recognition.onerror = () => { $("genStatus").textContent = "Couldn't hear you. Check the microphone permission."; };
+    recognition.onend = () => { recognition = null; btn.classList.remove("active"); };
+    recognition.start();
+    btn.classList.add("active");
   };
-  recognition.onerror = () => { $("genStatus").textContent = "Couldn't hear you. Check the microphone permission."; };
-  recognition.onend = () => { recognition = null; $("micBtn").classList.remove("active"); };
-  recognition.start();
-  $("micBtn").classList.add("active");
-};
+}
+setupMic("micBtn", "desc");
+setupMic("micBtn2", "subject");
 
 // ================= Generate image with Cloudflare Workers AI (free, fast) =================
 // Paste your Cloudflare Worker link below (see the setup steps). Ends with .workers.dev
@@ -544,7 +595,7 @@ async function generateWithHorde(sketchDataUrl, prompt, onStatus) {
     params: {
       sampler_name: "k_euler_a",
       cfg_scale: 7.5,
-      denoising_strength: 0.72,   // lower = stays closer to your drawing, higher = more AI freedom
+      denoising_strength: 0.65,   // lower = stays closer to your drawing, higher = more AI freedom
       width: 512,
       height: 384,
       steps: 28,
@@ -595,7 +646,8 @@ async function generateWithHorde(sketchDataUrl, prompt, onStatus) {
 $("genBtn").onclick = async () => {
   if (!currentFolder) return;
   const style = STYLES.find((s) => s.id === selectedStyle);
-  const desc = $("desc").value.trim();
+  const subject = $("subject").value.trim();   // what the drawing is (e.g. "a tree")
+  const desc = $("desc").value.trim();          // what to add (e.g. "a blue apple on the tree")
   // When there is no description, avoid style words that make the AI invent a scene (like "photo").
   const NO_SCENE_STYLE = {
     realistic: "photorealistic rendering of the drawn object only, soft even studio lighting, sharp focus, highly detailed",
@@ -603,28 +655,41 @@ $("genBtn").onclick = async () => {
   };
   const stylePrompt = desc ? style.prompt : (NO_SCENE_STYLE[style.id] || style.prompt);
 
+  const colors = (currentFolder.colors || []).join(", ");
+  const subjectLine = subject ? `The sketch shows ${subject}. ` : "";
+  const colorLine = colors
+    ? `The sketch uses these colours: ${colors}. Keep exactly these colours on the matching parts (for example a pink tree must stay pink). `
+    : "Keep the colours of the sketch. ";
   const keepDrawing =
-    "Image 0 is a hand-drawn sketch and it is the main subject. " +
-    "The drawn subject must stay EXACTLY as the person drew it: the same shapes, proportions, position, size and colours. " +
-    "Do not redesign, replace, move, add to or remove parts of the drawn subject. ";
+    "Image 0 is a hand-drawn sketch and it is the main subject. " + subjectLine + colorLine +
+    "The drawn subject must keep EXACTLY the same shape, proportions, position and size as drawn. " +
+    "Do not redesign it, replace it, move it, or swap it for a different generic version of the same thing. ";
+  const realism = (style.id === "realistic" || style.id === "bw")
+    ? "Make it look a little more realistic: add natural texture, soft shading and gentle lighting, while keeping the shape and the colours of the drawing. "
+    : "";
+  const addLine = desc
+    ? `Add the following to the same picture, together with the drawn subject, without changing the subject itself: ${desc}. ` +
+      "If a colour is stated for an added item, use exactly that colour (a blue apple must be blue). " +
+      "If no colour is stated, use that item's natural colour (an apple is red). " +
+      "Attach the added items naturally to the drawn subject with matching lighting, scale and shadows. "
+    : "";
 
   const aiPrompt = desc
     ? "Edit image 0. " + keepDrawing +
-      `Render the drawn subject in this style: ${stylePrompt}. ` +
-      `Then add the following into the same picture, around and together with the drawn subject, without changing the subject itself: ${desc}. ` +
-      "Blend the added parts naturally with matching lighting, shadows, scale and perspective, all in the same style. " +
+      `Render the drawn subject in this style: ${stylePrompt}. ` + realism + addLine +
       "Never create a new picture from the description alone: the drawn subject must clearly be the one from image 0. " +
       "Do not add any text or watermark."
     : "Edit image 0. " + keepDrawing +
-      `Only change how the drawn subject is rendered, in this style: ${stylePrompt}. ` +
+      `Only change how the drawn subject is rendered, in this style: ${stylePrompt}. ` + realism +
       "IMPORTANT: keep the background of image 0 exactly as it is: a pure, plain, empty white background filling the whole picture, like a blank white painting canvas. " +
       "There must be NO scenery, NO beach, NO sky, NO room, NO table or surface, NO hands, NO people, NO other objects and NO background details of any kind. " +
       "Only the drawn subject, alone, on plain white. " +
       "Do not add any text or watermark.";
 
+  const hordeBase = `${stylePrompt}, ${subject ? subject + ", " : ""}the same drawn subject as in the sketch, same shapes, position and colours${colors ? " (" + colors + ")" : ""}`;
   const hordePrompt = desc
-    ? `${stylePrompt}, the same drawn subject as in the sketch, same shapes and position, with ${desc}, high quality`
-    : `${stylePrompt}, the same drawn subject as in the sketch, same shapes and position, isolated on a plain pure white background, nothing else, high quality`;
+    ? `${hordeBase}, with ${desc}, high quality`
+    : `${hordeBase}, isolated on a plain pure white background, nothing else, high quality`;
 
   const btn = $("genBtn");
   btn.disabled = true;
@@ -653,7 +718,7 @@ $("genBtn").onclick = async () => {
     $("resultImg").hidden = false;
     $("genStatus").textContent = "Done! Downloaded and saved to your Album.";
 
-    currentFolder.results.push({ style: style.label, prompt: desc, image });
+    currentFolder.results.push({ style: style.label, prompt: [subject, desc].filter(Boolean).join("; "), image });
     try { await dbPut(currentFolder); } catch (e) { console.error("Album save failed", e); }
     download(image, `airbrush-${style.id}.png`);
   } catch (e) {
