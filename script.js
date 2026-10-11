@@ -246,10 +246,20 @@ const MODE_TEXT = { draw: "Drawing", erase: "Erasing", palm: "Paused", none: "Re
 
 function clearHand() { handCtx.clearRect(0, 0, W, H); }
 
+// Turn a hand point (0..1 of the camera picture) into canvas pixels, exactly where it appears on the
+// webcam box. The video is mirrored and cropped to fill the box, so we must undo the same crop here.
+function toCanvas(p) {
+  const vw = video.videoWidth || W, vh = video.videoHeight || H;
+  const sc = Math.max(W / vw, H / vh);
+  const x = p.x * vw * sc + (W - vw * sc) / 2;
+  const y = p.y * vh * sc + (H - vh * sc) / 2;
+  return { x: W - x, y };
+}
+
 function drawHand(lm, g, score) {
   const c = handCtx;
   c.clearRect(0, 0, W, H);
-  const P = lm.map((p) => ({ x: (1 - p.x) * W, y: p.y * H }));   // mirrored like the video
+  const P = lm.map(toCanvas);   // same mirror and crop as the video
   c.save();
   c.lineCap = "round"; c.lineJoin = "round";
 
@@ -260,18 +270,19 @@ function drawHand(lm, g, score) {
   c.fillStyle = "rgba(232, 208, 154, 0.12)";
   c.fill();
 
-  // glowing bones
-  c.shadowColor = "rgba(232, 208, 154, 0.95)"; c.shadowBlur = 10;
-  c.strokeStyle = "rgba(242, 236, 223, 0.92)"; c.lineWidth = 2.5;
+  // bones: dark outline first so they stay visible on any background, then a glowing line
   c.beginPath();
   BONES.forEach(([a, b]) => { c.moveTo(P[a].x, P[a].y); c.lineTo(P[b].x, P[b].y); });
+  c.strokeStyle = "rgba(17, 27, 37, 0.75)"; c.lineWidth = 7; c.stroke();
+  c.shadowColor = "rgba(232, 208, 154, 1)"; c.shadowBlur = 12;
+  c.strokeStyle = "#f6efe0"; c.lineWidth = 3.5;
   c.stroke();
 
   // joints (fingertips are larger and rose)
   c.shadowBlur = 6;
   P.forEach((p, i) => {
     const tip = TIPS.includes(i);
-    c.beginPath(); c.arc(p.x, p.y, tip ? 5.5 : 3.5, 0, Math.PI * 2);
+    c.beginPath(); c.arc(p.x, p.y, tip ? 7 : 4.5, 0, Math.PI * 2);
     c.fillStyle = tip ? "#d98f98" : "#c2a066"; c.fill();
     c.lineWidth = 1.5; c.strokeStyle = "#111b25"; c.stroke();
   });
@@ -340,7 +351,7 @@ function onResults(results) {
   else if (++gestureCount >= 3) { stableGesture = raw; gestureCount = 0; current = null; }
   const g = stableGesture;
   const score = results.multiHandedness && results.multiHandedness[0] ? results.multiHandedness[0].score : null;
-  drawHand(lm, g, score);
+  try { drawHand(lm, g, score); } catch (e) { console.error("skeleton error", e); }
 
   // drawing is paused while the "Done drawing" panel or the Album is open
   if (!drawEnabled) { current = null; lastPoint = null; showCursor(null); setMode("Idle"); return; }
@@ -348,7 +359,7 @@ function onResults(results) {
   const now = performance.now();
   let fx = lm[8].x, fy = lm[8].y;
   if (g === "erase") { fx = (lm[8].x + lm[12].x) / 2; fy = (lm[8].y + lm[12].y) / 2; }
-  const target = { x: (1 - fx) * W, y: fy * H };
+  const target = toCanvas({ x: fx, y: fy });
   lastPoint = lastPoint
     ? { x: lastPoint.x + (target.x - lastPoint.x) * 0.5, y: lastPoint.y + (target.y - lastPoint.y) * 0.5 }
     : target;
@@ -421,6 +432,7 @@ async function startApp() {
     return;
   }
 
+  console.log("AirBrush v4 loaded");
   statusEl.textContent = "Loading hand tracking (first time takes a few seconds)…";
   const hands = new Hands({
     locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}`,
