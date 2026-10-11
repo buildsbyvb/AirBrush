@@ -354,16 +354,41 @@ async function toDataUrl(src) {
   });
 }
 
+function errText(e) {
+  if (!e) return "Unknown error";
+  if (typeof e === "string") return e;
+  return e.message || (e.error && (e.error.message || e.error)) || JSON.stringify(e);
+}
+
 async function generateWithPuter(sketchDataUrl, prompt) {
   if (!window.puter) throw new Error("The AI service did not load. Check your internet and reload the page.");
   const base64 = sketchDataUrl.split(",")[1];
-  const img = await puter.ai.txt2img(prompt, {
-    provider: "gemini",
-    model: "gemini-2.5-flash-image-preview",
-    input_image: base64,
-    input_image_mime_type: "image/png",
-  });
-  return await toDataUrl(img.src);
+
+  // Model names change over time, so we try a few until one works.
+  const attempts = [
+    { model: "google/gemini-2.5-flash-image" },
+    { model: "gemini-3.1-flash-image-preview" },
+    { model: "google/gemini-3-pro-image-preview" },
+    { provider: "gemini", model: "gemini-2.5-flash-image-preview" },
+  ];
+
+  let lastError = null;
+  for (const opts of attempts) {
+    try {
+      const img = await puter.ai.txt2img(prompt, {
+        ...opts,
+        input_image: base64,
+        input_image_mime_type: "image/png",
+      });
+      return await toDataUrl(img.src);
+    } catch (e) {
+      lastError = e;
+      const msg = errText(e).toLowerCase();
+      // only move on to the next model if this model name was the problem
+      if (!(msg.includes("not found") || msg.includes("model") || msg.includes("not supported"))) break;
+    }
+  }
+  throw new Error(errText(lastError));
 }
 
 $("genBtn").onclick = async () => {
@@ -398,7 +423,7 @@ $("genBtn").onclick = async () => {
   } catch (e) {
     clearInterval(timer);
     $("genStatus").textContent =
-      "❌ " + (e && e.message ? e.message : "Could not make the image") + " — if a Puter sign-in window appeared, sign in (it is free) and click Generate again.";
+      "❌ " + errText(e) + " — if a Puter sign-in window appeared, sign in (it is free) and click Generate again.";
   }
   btn.disabled = false;
 };
