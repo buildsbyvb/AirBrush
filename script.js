@@ -11,7 +11,7 @@ const paintCtx = paintCanvas.getContext("2d");
 const statusEl = $("status");
 
 // ---------- state ----------
-let color = "#ff3b30";
+let color = "#ff0000";
 let size = 8;
 let tool = "pen";
 let strokes = [];
@@ -27,16 +27,16 @@ let openFolderId = null;
 
 // ---------- output styles ----------
 const STYLES = [
-  { id: "realistic",  label: "📷 Realistic image",   prompt: "realistic photo, ultra detailed, natural lighting, sharp focus" },
-  { id: "bw",         label: "⚫ Black & white",      prompt: "black and white photograph, monochrome, high contrast, dramatic shading" },
-  { id: "watercolor", label: "💧 Watercolour",        prompt: "watercolor painting, soft washes of colour, paper texture, delicate brushwork" },
-  { id: "oil",        label: "🎨 Oil painting",       prompt: "oil painting, thick brush strokes, rich colours, canvas texture, masterpiece" },
-  { id: "pencil",     label: "✏️ Pencil sketch",      prompt: "detailed pencil sketch, graphite shading, hand drawn on paper" },
-  { id: "cartoon",    label: "🧸 Cartoon",            prompt: "cartoon illustration, bold outlines, bright flat colours, cute" },
-  { id: "anime",      label: "🌸 Anime",              prompt: "anime style illustration, vibrant colours, clean lines, studio quality" },
-  { id: "pixel",      label: "👾 Pixel art",          prompt: "pixel art, 16-bit retro game style, limited colour palette" },
-  { id: "3d",         label: "🧊 3D render",          prompt: "3D render, soft studio lighting, smooth materials, octane render" },
-  { id: "comic",      label: "💥 Comic book",         prompt: "comic book art, ink outlines, halftone dots, dynamic colours" },
+  { id: "realistic",  label: "Realistic image",   prompt: "realistic photo, ultra detailed, natural lighting, sharp focus" },
+  { id: "bw",         label: "Black & white",      prompt: "black and white photograph, monochrome, high contrast, dramatic shading" },
+  { id: "watercolor", label: "Watercolour",        prompt: "watercolor painting, soft washes of colour, paper texture, delicate brushwork" },
+  { id: "oil",        label: "Oil painting",       prompt: "oil painting, thick brush strokes, rich colours, canvas texture, masterpiece" },
+  { id: "pencil",     label: "Pencil sketch",      prompt: "detailed pencil sketch, graphite shading, hand drawn on paper" },
+  { id: "cartoon",    label: "Cartoon",            prompt: "cartoon illustration, bold outlines, bright flat colours, cute" },
+  { id: "anime",      label: "Anime",              prompt: "anime style illustration, vibrant colours, clean lines, studio quality" },
+  { id: "pixel",      label: "Pixel art",          prompt: "pixel art, 16-bit retro game style, limited colour palette" },
+  { id: "3d",         label: "3D render",          prompt: "3D render, soft studio lighting, smooth materials, octane render" },
+  { id: "comic",      label: "Comic book",         prompt: "comic book art, ink outlines, halftone dots, dynamic colours" },
 ];
 let selectedStyle = "realistic";
 
@@ -54,9 +54,9 @@ STYLES.forEach((s) => {
 });
 
 // ---------- colour swatches ----------
-const COLORS = ["#ff3b30", "#ff9500", "#ffcc00", "#34c759",
-                "#00c7be", "#007aff", "#af52de", "#ff2d92",
-                "#000000", "#8e8e93", "#ffffff", "#8b5a2b"];
+const ROW1 = ["#000000", "#808080", "#800000", "#808000", "#008000", "#008080", "#000080", "#800080", "#808040", "#004040", "#0080ff", "#004080", "#8000ff", "#804000"];
+const ROW2 = ["#ffffff", "#c0c0c0", "#ff0000", "#ffff00", "#00ff00", "#00ffff", "#0000ff", "#ff00ff", "#ffff80", "#00ff80", "#80ffff", "#8080ff", "#ff0080", "#ff8040"];
+const COLORS = ROW1.flatMap((c, i) => [c, ROW2[i]]);
 const swatchBox = $("swatches");
 COLORS.forEach((c) => {
   const d = document.createElement("div");
@@ -69,6 +69,7 @@ COLORS.forEach((c) => {
 function setColor(c) {
   color = c;
   $("colorPicker").value = c;
+  $("curColor").style.background = c;
   document.querySelectorAll(".swatch").forEach((s) =>
     s.classList.toggle("active", s.dataset.color === c.toLowerCase())
   );
@@ -163,20 +164,31 @@ function showCursor(p, gesture) {
 }
 
 function onResults(results) {
-  if (!drawEnabled) { current = null; lastPoint = null; showCursor(null); return; }
-
   const hands = results.multiHandLandmarks;
   if (!hands || hands.length === 0) {
-    current = null; lastPoint = null; showCursor(null);
-    statusEl.textContent = "👋 Show your hand to the camera";
+    current = null; lastPoint = null; showCursor(null); hidePointer();
+    if (drawEnabled) statusEl.textContent = "Show your hand to the camera";
     return;
   }
   const lm = hands[0];
-  const raw = getGesture(lm);
+  const ratio = pinchRatio(lm);
+  updatePinch(ratio, lm);
+  const raw = pinching ? "pinch" : getGesture(lm);
 
   if (raw === stableGesture) { gestureCount = 0; }
   else if (++gestureCount >= 3) { stableGesture = raw; gestureCount = 0; current = null; }
   const g = stableGesture;
+
+  // Open palm (or any hand while not drawing) = pointer mode: control the whole page with your fingertip
+  const now = performance.now();
+  if (!drawEnabled || g === "palm" || (g === "pinch" && now - lastPointerTime < 2000)) {
+    lastPointerTime = now;
+    current = null; lastPoint = null; showCursor(null);
+    updatePointer(lm, ratio);
+    return;
+  }
+  hidePointer();
+  if (g === "draw" || g === "erase") lastPointerTime = 0;
 
   let fx = lm[8].x, fy = lm[8].y;
   if (g === "erase") { fx = (lm[8].x + lm[12].x) / 2; fy = (lm[8].y + lm[12].y) / 2; }
@@ -199,12 +211,115 @@ function onResults(results) {
       current.pts.push(p);
       drawBoth(current, prev, p);
     }
-    statusEl.textContent = erase ? "🧽 Erasing" : "✏️ Drawing";
+    statusEl.textContent = erase ? "Erasing" : "Drawing";
   } else {
     current = null;
-    statusEl.textContent = g === "palm" ? "✋ Stopped (palm)" : "✊ Waiting… raise 1 finger to draw";
+    statusEl.textContent = g === "palm" ? "Stopped (palm)" : "Waiting… raise 1 finger to draw";
   }
 }
+
+// ================= Hand pointer: control the whole page with your fingertip =================
+// Open palm = pointer. Move your hand and items highlight. Pinch thumb + index = select.
+// If pinching feels too sensitive or too hard, tune these numbers.
+const PINCH_ON = 0.30, PINCH_OFF = 0.45, PINCH_FREEZE = 0.55, PINCH_REACH = 1.0;
+const TARGETS = "button, .swatch, .chip, .card:not(.nohover), input[type=range], [data-gesture]";
+const pointerEl = $("handPointer");
+let pinchFrames = 0, hoverSince = 0, pointerPos = null, pinching = false, wasPinching = false, lastPointerTime = 0, hoverEl = null, sliderDrag = null;
+
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const hdist = (a, b) => Math.hypot((a.x - b.x) * W, (a.y - b.y) * H);
+const palmSize = (lm) => hdist(lm[0], lm[9]) || 1;
+const pinchRatio = (lm) => hdist(lm[4], lm[8]) / palmSize(lm);
+
+function updatePinch(ratio, lm) {
+  const reach = hdist(lm[8], lm[0]) / palmSize(lm);   // stops a closed fist counting as a pinch
+  if (!pinching) {
+    pinchFrames = (ratio < PINCH_ON && reach > PINCH_REACH) ? pinchFrames + 1 : 0;
+    if (pinchFrames >= 2) pinching = true;
+  } else if (ratio > PINCH_OFF) { pinching = false; pinchFrames = 0; }
+}
+function setHover(t) {
+  if (t === hoverEl) return;
+  if (hoverEl) hoverEl.classList.remove("hot", "pressed");
+  hoverEl = t;
+  hoverSince = performance.now();
+  if (hoverEl) hoverEl.classList.add("hot");
+}
+function targetAt(x, y) {
+  const el = document.elementFromPoint(x, y);
+  const t = el && el.closest(TARGETS);
+  return t && !t.disabled ? t : null;
+}
+function setSlider(el, x) {
+  const r = el.getBoundingClientRect();
+  const f = clamp((x - r.left) / r.width, 0, 1);
+  el.value = Math.round(+el.min + f * (+el.max - +el.min));
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+}
+function activate(el) {
+  if (el.matches("input[type=range]")) { sliderDrag = el; setSlider(el, pointerPos.x); return; }
+  el.click();
+}
+function labelOf(el) {
+  return el.getAttribute("aria-label") || el.title || el.textContent.trim().slice(0, 30) ||
+    (el.dataset.color ? "colour " + el.dataset.color : "item");
+}
+function updatePointer(lm, ratio) {
+  // the middle of thumb + index stays put while you pinch, so the click lands where you aimed
+  const mx = 1 - (lm[4].x + lm[8].x) / 2, my = (lm[4].y + lm[8].y) / 2;
+  const t = { x: clamp((mx - 0.12) / 0.76, 0, 1) * (innerWidth - 1), y: clamp((my - 0.1) / 0.75, 0, 1) * (innerHeight - 1) };
+  if (!pointerPos) pointerPos = t;
+  else if (sliderDrag || ratio > PINCH_FREEZE) {      // freeze while closing the pinch (unless dragging the slider)
+    pointerPos = { x: pointerPos.x + (t.x - pointerPos.x) * 0.4, y: pointerPos.y + (t.y - pointerPos.y) * 0.4 };
+  }
+  pointerEl.hidden = false;
+  pointerEl.style.transform = `translate(${pointerPos.x}px, ${pointerPos.y}px)`;
+  pointerEl.classList.toggle("pinched", pinching);
+
+  if (sliderDrag && !pinching) sliderDrag = null;
+  if (sliderDrag) setSlider(sliderDrag, pointerPos.x);
+  else if (!pinching) setHover(targetAt(pointerPos.x, pointerPos.y));
+  if (hoverEl) hoverEl.classList.toggle("pressed", pinching);
+
+  if (pinching && !wasPinching && hoverEl && performance.now() - hoverSince > 150) activate(hoverEl);                                   // select
+  if (pinching && hoverEl && hoverEl.dataset.scroll) window.scrollBy(0, +hoverEl.dataset.scroll * 22); // hold to scroll
+  wasPinching = pinching;
+  setMode("Pointer");
+  statusEl.textContent = hoverEl ? "Pinch to select: " + labelOf(hoverEl) : "Pointer mode: hover over an item, then pinch to select";
+}
+function setMode(m) { const el = $("modeLabel"); if (el.textContent !== m) el.textContent = m; }
+function hidePointer() {
+  pointerEl.hidden = true;
+  setHover(null);
+  sliderDrag = null;
+  wasPinching = pinching;
+  setMode("Draw");
+}
+
+// confirm box that works with gestures (replaces the browser's confirm pop-up)
+function askConfirm(msg) {
+  return new Promise((resolve) => {
+    $("dlgText").textContent = msg;
+    $("dlg").hidden = false;
+    const done = (v) => { $("dlg").hidden = true; resolve(v); };
+    $("dlgYes").onclick = () => done(true);
+    $("dlgNo").onclick = () => done(false);
+  });
+}
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("dlg").hidden) $("dlgNo").click(); });
+
+// scroll buttons (hold with the mouse, or hold a pinch)
+document.querySelectorAll("[data-scroll]").forEach((b) => {
+  let timer;
+  const dir = +b.dataset.scroll, stop = () => clearInterval(timer);
+  b.onmousedown = () => { window.scrollBy(0, dir * 40); timer = setInterval(() => window.scrollBy(0, dir * 22), 30); };
+  b.onmouseup = stop; b.onmouseleave = stop;
+});
+setInterval(() => { $("scrollpad").hidden = document.documentElement.scrollHeight <= innerHeight + 4; }, 500);
+
+// front-page colour strip + current colour box
+COLORS.forEach((c) => { const i = document.createElement("i"); i.style.background = c; $("ornament").appendChild(i); });
+$("curColor").style.background = color;
 
 // ---------- start camera + hand tracking ----------
 async function startApp() {
@@ -218,7 +333,7 @@ async function startApp() {
     video.srcObject = stream;
     await video.play();
   } catch (e) {
-    statusEl.textContent = "❌ Camera blocked. Click the camera icon in the address bar and allow it, then reload.";
+    statusEl.textContent = "Camera blocked. Click the camera icon in the address bar and allow it, then reload.";
     started = false;
     return;
   }
@@ -296,7 +411,7 @@ $("tabAlbum").onclick = () => showView("album");
 // ================= Done drawing =================
 $("doneBtn").onclick = async () => {
   if (strokes.length === 0) {
-    statusEl.textContent = "🖊️ Draw something first, then click Done drawing.";
+    statusEl.textContent = "Draw something first, then click Done drawing.";
     return;
   }
   const img = snapshot();
@@ -326,7 +441,7 @@ const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
 $("micBtn").onclick = () => {
   if (!SR) {
-    $("genStatus").textContent = "🎤 Voice input works in Chrome or Edge. Please type instead.";
+    $("genStatus").textContent = "Voice input works in Chrome or Edge. Please type instead.";
     return;
   }
   if (recognition) { recognition.stop(); return; }
@@ -337,7 +452,7 @@ $("micBtn").onclick = () => {
     const text = e.results[0][0].transcript;
     $("desc").value = ($("desc").value ? $("desc").value + " " : "") + text;
   };
-  recognition.onerror = () => { $("genStatus").textContent = "🎤 Couldn't hear you. Check the microphone permission."; };
+  recognition.onerror = () => { $("genStatus").textContent = "Couldn't hear you. Check the microphone permission."; };
   recognition.onend = () => { recognition = null; $("micBtn").classList.remove("active"); };
   recognition.start();
   $("micBtn").classList.add("active");
@@ -518,7 +633,7 @@ $("genBtn").onclick = async () => {
   let hint = "(usually 5–20 seconds, keep this tab open)";
   const timer = setInterval(() => {
     $("genStatus").textContent =
-      `⏳ Generating… ${Math.round((Date.now() - t0) / 1000)}s ${queueInfo}${hint}`;
+      `Generating… ${Math.round((Date.now() - t0) / 1000)}s ${queueInfo}${hint}`;
   }, 1000);
 
   try {
@@ -536,7 +651,7 @@ $("genBtn").onclick = async () => {
     clearInterval(timer);
     $("resultImg").src = image;
     $("resultImg").hidden = false;
-    $("genStatus").textContent = "✅ Done! Downloaded and saved to your Album.";
+    $("genStatus").textContent = "Done! Downloaded and saved to your Album.";
 
     currentFolder.results.push({ style: style.label, prompt: desc, image });
     try { await dbPut(currentFolder); } catch (e) { console.error("Album save failed", e); }
@@ -544,7 +659,7 @@ $("genBtn").onclick = async () => {
   } catch (e) {
     clearInterval(timer);
     $("genStatus").textContent =
-      "❌ " + errText(e) + " — you can click Generate image again.";
+      "Error: " + errText(e) + " — you can click Generate image again.";
   }
   btn.disabled = false;
 };
@@ -566,7 +681,7 @@ async function showAlbumList() {
   for (const f of folders) {
     const card = document.createElement("div");
     card.className = "card";
-    card.innerHTML = `<img alt="Folder cover" /><div class="label">📁 ${fmt(f.created)}<br>${f.results.length} generated image${f.results.length === 1 ? "" : "s"}</div>`;
+    card.innerHTML = `<img alt="Folder cover" /><div class="label">${fmt(f.created)}<br>${f.results.length} generated image${f.results.length === 1 ? "" : "s"}</div>`;
     card.querySelector("img").src = f.drawing;
     card.onclick = () => openFolder(f);
     grid.appendChild(card);
@@ -577,14 +692,14 @@ function openFolder(f) {
   openFolderId = f.id;
   $("albumList").hidden = true;
   $("folderView").hidden = false;
-  $("folderTitle").textContent = "📁 " + fmt(f.created);
+  $("folderTitle").textContent = "Folder: " + fmt(f.created);
 
   const box = $("folderItems");
   box.innerHTML = "";
   const addItem = (src, label, fileName) => {
     const c = document.createElement("div");
     c.className = "card nohover";
-    c.innerHTML = `<img alt="" /><div class="label"></div><button class="tool">⬇️ Download</button>`;
+    c.innerHTML = `<img alt="" /><div class="label"></div><button class="tool">Download</button>`;
     c.querySelector("img").src = src;
     c.querySelector(".label").textContent = label;
     c.querySelector("button").onclick = () => download(src, fileName);
@@ -599,7 +714,7 @@ function openFolder(f) {
 $("folderBack").onclick = showAlbumList;
 $("folderDelete").onclick = async () => {
   if (openFolderId === null) return;
-  if (!confirm("Delete this folder (drawing + generated images)?")) return;
+  if (!(await askConfirm("Delete this folder (drawing + generated images)?"))) return;
   try { await dbDelete(openFolderId); } catch (e) { console.error(e); }
   showAlbumList();
 };
