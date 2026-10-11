@@ -483,9 +483,15 @@ $("genBtn").onclick = async () => {
   const desc = $("desc").value.trim();
   const aiPrompt =
     "Turn the hand-drawn sketch in image 0 into a finished, high quality image. " +
-    "Keep the exact shapes, positions and layout of the sketch, and keep its colours where they make sense. " +
+    "Keep the shapes, positions and layout of the drawn subject, and keep its colours where they make sense. " +
+    "The plain empty background of the sketch is just blank paper, not part of the picture. " +
     `Style: ${style.prompt}. ` +
-    (desc ? `Also include this (even if it is not in the sketch): ${desc}. ` : "") +
+    (desc
+      ? `Scene and details to include: ${desc}. ` +
+        "Blend the drawn subject and the scene together into ONE cohesive picture: the same lighting, colour harmony, shadows, reflections, scale and perspective, " +
+        "so the subject looks like it truly belongs in the scene and is not pasted on top of it. " +
+        "Apply the chosen style to the whole picture, including the subject. "
+      : "Fill the background with a fitting, natural setting that matches the subject. ") +
     "Do not add any text or watermark.";
   const hordePrompt =
     (desc ? desc + ", " : "") +
