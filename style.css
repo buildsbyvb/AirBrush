@@ -73,7 +73,7 @@ h3 { font: 600 16px var(--display); color: var(--mist); margin-top: 10px; letter
 .menubar { display: flex; gap: 6px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--glass); }
 
 .workspace { display: flex; gap: 26px; padding: 24px 28px; }
-.tools { width: 232px; flex: none; display: flex; flex-direction: column; gap: 14px; padding: 18px; background: var(--glass); border: 1px solid var(--line); border-radius: 20px; backdrop-filter: blur(10px); }
+.tools { width: 256px; flex: none; display: flex; flex-direction: column; gap: 14px; padding: 18px; background: var(--glass); border: 1px solid var(--line); border-radius: 20px; backdrop-filter: blur(10px); }
 fieldset { border: 0; border-top: 1px solid var(--line); padding: 10px 0 4px; display: flex; flex-direction: column; gap: 8px; }
 fieldset:first-of-type { border-top: 0; padding-top: 0; }
 legend { font: 700 14px var(--display); color: var(--mist); padding: 0 8px 0 0; }
@@ -96,7 +96,6 @@ input[type="range"] { width: 100%; height: 30px; accent-color: var(--peach); }
 .cursor { position: absolute; width: 20px; height: 20px; border: 3px solid #fff; border-radius: 50%; box-shadow: 0 0 10px rgba(0, 0, 0, 0.8), 0 0 18px rgba(255, 255, 255, 0.5); transform: translate(-50%, -50%); pointer-events: none; display: none; }
 
 /* ---------- colours ---------- */
-.palette-bar { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; padding: 16px 20px; background: var(--glass); border: 1px solid var(--line); border-radius: 20px; backdrop-filter: blur(10px); }
 .swatch.active { box-shadow: 0 0 0 2px var(--void), 0 0 0 4px var(--cyan), 0 0 14px var(--cyan); }
 
 /* ---------- after "Done drawing" ---------- */
@@ -151,16 +150,36 @@ h3 small { font: 500 13px var(--sans); color: var(--muted); margin-left: 6px; }
 @media (prefers-reduced-motion: reduce) { *, body::before, .statusbar::before { transition: none !important; animation: none !important; } }
 
 /* ---------- colour groups and custom wheel ---------- */
-.swatches { display: flex; flex-wrap: wrap; gap: 9px; max-width: 420px; }
-.swatch { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; background-image: radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 55%); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3), 0 2px 6px rgba(0, 0, 0, 0.5); transition: transform 0.12s; }
+.swatches { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.swatch { width: 100%; aspect-ratio: 1; padding: 0; border: 0; border-radius: 50%; cursor: pointer; background-image: radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 55%); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3), 0 2px 6px rgba(0, 0, 0, 0.5); transition: transform 0.12s; }
 .swatch:hover { transform: scale(1.14); }
 .custom-wrap { position: relative; }
+.custom-wrap .tool { width: 100%; }
 .wheel-dot { display: inline-block; width: 18px; height: 18px; border-radius: 50%; background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); }
-.wheel-pop { position: absolute; right: 0; bottom: calc(100% + 14px); z-index: 30; width: 240px; padding: 18px; display: flex; flex-direction: column; align-items: center; gap: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 0 50px rgba(79, 124, 255, 0.3), 0 20px 50px rgba(0, 0, 0, 0.6); }
+.wheel-pop { position: absolute; left: 0; right: 0; bottom: calc(100% + 10px); z-index: 30; padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 0 50px rgba(79, 124, 255, 0.3), 0 20px 50px rgba(0, 0, 0, 0.6); }
 .wheel-pop[hidden] { display: none; }
-#wheel { width: 200px; height: 200px; border-radius: 50%; cursor: crosshair; touch-action: none; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 0 30px rgba(79, 124, 255, 0.5); }
+#wheel { width: 180px; height: 180px; border-radius: 50%; cursor: crosshair; touch-action: none; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 0 30px rgba(79, 124, 255, 0.5); }
 .bright { width: 100%; font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 0; }
 .hexrow { display: flex; align-items: center; gap: 10px; width: 100%; }
 #wheelPrev { width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.85); background: #f00; flex: none; }
 #hexIn { flex: 1; min-width: 0; color: var(--mist); background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: 600 14px var(--sans); letter-spacing: 0.05em; }
 .frame #handCanvas { pointer-events: none; }
+
+/* ---------- drawing state, messages ---------- */
+.state { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; font: 700 13px var(--display); border: 1px solid var(--line); }
+.state i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.state.on { color: #bff6ff; border-color: rgba(34, 225, 255, 0.5); }
+.state.on i { background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+.state.off { color: #ffd9b0; border-color: rgba(255, 190, 140, 0.55); }
+.state.off i { background: var(--peach); box-shadow: 0 0 10px var(--peach); }
+.side-msg, .mic-msg { font: 600 13px var(--sans); color: #bff6ff; }
+.side-msg:empty, .mic-msg:empty { display: none; }
+#resumeBtn:disabled { cursor: not-allowed; }
+.mic.active { animation: micpulse 1.4s ease-in-out infinite; }
+@keyframes micpulse { 50% { box-shadow: 0 0 0 6px rgba(255, 190, 140, 0.18), 0 0 18px rgba(255, 190, 140, 0.6); } }
+#finish { scroll-margin-top: 84px; }
+
+/* ---------- homepage: small paintbrush cursor (mouse only, never on touch screens) ---------- */
+@media (hover: hover) and (pointer: fine) {
+  #landing, #landing * { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><path d='M28 4L15 17' stroke='%230b1230' stroke-width='6.5' stroke-linecap='round'/><path d='M28 4L15 17' stroke='%23ffe2b0' stroke-width='4' stroke-linecap='round'/><path d='M15 17l-4 4' stroke='%230b1230' stroke-width='7.5' stroke-linecap='round'/><path d='M15 17l-4 4' stroke='%23d5def2' stroke-width='5' stroke-linecap='round'/><path d='M9.5 19.5C12.5 20 13 23.5 10.5 25.5C8.5 27.5 5.5 28.5 3 29C3.5 26.5 4.5 23.5 6.5 21.5C7.5 20.5 8.5 19.8 9.5 19.5Z' fill='%23ff8fa8' stroke='%230b1230' stroke-width='1.2' stroke-linejoin='round'/></svg>") 3 29, auto; }
+}
