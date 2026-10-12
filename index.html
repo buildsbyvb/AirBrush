@@ -6,21 +6,18 @@
   <title>AirBrush</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Jost:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=4" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=5" />
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
   <!-- ===== FRONT PAGE ===== -->
   <section id="landing">
+    <canvas id="fx" aria-hidden="true"></canvas>
     <div class="welcome">
       <h1>AirBrush</h1>
-      <svg class="stroke" viewBox="0 0 400 24" aria-hidden="true"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#d98f98"/><stop offset="0.5" stop-color="#e8d09a"/><stop offset="1" stop-color="#8fb3a0"/></linearGradient></defs><path d="M6 14C70 4 120 20 200 12S330 6 394 13" fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round"/></svg>
-      <p class="tagline">Draw in the air. Just use your hand.</p>
-      <div id="ornament" class="ornament" aria-hidden="true"></div>
-      <button id="startBtn" class="btn primary">Get Started</button>
-      <p class="fine">Allow camera access when asked. It is used only to track your hand.</p>
+      <button id="startBtn" class="btn primary">Get started</button>
     </div>
   </section>
 
@@ -42,10 +39,10 @@
           <fieldset>
             <legend>Tools</legend>
             <div class="toolgrid">
-              <button id="penBtn" class="tool active"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 14l1-4 8-8 3 3-8 8z" fill="#f5c542" stroke="#000"/><path d="M2 14l1-4 3 3z" fill="#f2c9a0" stroke="#000"/></svg>Pen</button>
-              <button id="eraserBtn" class="tool"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 10L8 4l6 5-5 5H5z" fill="#f08c8c" stroke="#000" stroke-linejoin="round"/></svg>Eraser</button>
-              <button id="undoBtn" class="tool"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M4 6h6a3 3 0 010 6H6M6 3L3 6l3 3" fill="none" stroke="#000" stroke-width="1.6"/></svg>Undo</button>
-              <button id="clearBtn" class="tool"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="#b00000" stroke-width="2"/></svg>Clear</button>
+              <button id="penBtn" class="tool active"><svg viewBox="0 0 16 16"><path d="M3 13l.8-3.2L11 2.6a1.4 1.4 0 012 2L5.8 12.2z"/><path d="M9.6 4l2.4 2.4"/></svg>Pen</button>
+              <button id="eraserBtn" class="tool"><svg viewBox="0 0 16 16"><path d="M9.5 3.2l3.3 3.3a1 1 0 010 1.4L8.2 12.5H5L2.9 10.4a1 1 0 010-1.4l5.2-5.8a1 1 0 011.4 0z"/><path d="M6 7l4 4M8 12.5h6"/></svg>Eraser</button>
+              <button id="undoBtn" class="tool"><svg viewBox="0 0 16 16"><path d="M5 3L2.5 5.5 5 8M3 5.5h6a3.5 3.5 0 010 7H6"/></svg>Undo</button>
+              <button id="clearBtn" class="tool"><svg viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5M7 7v4M9 7v4"/></svg>Clear</button>
             </div>
           </fieldset>
 
@@ -119,14 +116,14 @@
               <h3>What have you drawn? <small>(optional)</small></h3>
               <div class="desc-wrap">
                 <textarea id="subject" rows="1" placeholder="e.g. a tree"></textarea>
-                <button id="micBtn2" class="tool mic" title="Speak what you have drawn" aria-label="Speak what you have drawn"><svg width="18" height="18" viewBox="0 0 16 16"><rect x="6" y="1" width="4" height="8" rx="2" fill="#333"/><path d="M3 7a5 5 0 0010 0M8 12v3M5 15h6" fill="none" stroke="#333" stroke-width="1.5"/></svg></button>
+                <button id="micBtn2" class="tool mic" title="Speak what you have drawn" aria-label="Speak what you have drawn"><svg viewBox="0 0 16 16"><rect x="6" y="1" width="4" height="8" rx="2"/><path d="M3 7a5 5 0 0010 0M8 12v3M5 15h6"/></svg></button>
               </div>
               <p class="hint">Naming your drawing helps the image match your shapes and colours.</p>
 
               <h3>Would you like anything added? <small>(optional)</small></h3>
               <div class="desc-wrap">
                 <textarea id="desc" rows="2" placeholder="e.g. add a red apple on the tree"></textarea>
-                <button id="micBtn" class="tool mic" title="Speak what you would like added" aria-label="Speak what you would like added"><svg width="18" height="18" viewBox="0 0 16 16"><rect x="6" y="1" width="4" height="8" rx="2" fill="#333"/><path d="M3 7a5 5 0 0010 0M8 12v3M5 15h6" fill="none" stroke="#333" stroke-width="1.5"/></svg></button>
+                <button id="micBtn" class="tool mic" title="Speak what you would like added" aria-label="Speak what you would like added"><svg viewBox="0 0 16 16"><rect x="6" y="1" width="4" height="8" rx="2"/><path d="M3 7a5 5 0 0010 0M8 12v3M5 15h6"/></svg></button>
               </div>
 
               <h3>Choose the output style</h3>
@@ -177,6 +174,6 @@
 
   
 
-  <script src="script.js?v=4"></script>
+  <script src="script.js?v=5"></script>
 </body>
 </html>
