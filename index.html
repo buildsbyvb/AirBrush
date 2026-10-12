@@ -7,10 +7,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=6" />
+  <link rel="stylesheet" href="style.css?v=7" />
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
 </head>
 <body>
+  <!-- painted background: inked blues, white mist and a warm cream cloud -->
+  <div class="bg" aria-hidden="true">
+    <div class="ink-wrap"><div class="ink"><i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i><i class="b5"></i></div></div>
+  </div>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <filter id="inkwarp" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.0045 0.007" numOctaves="3" seed="11" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="220" xChannelSelector="R" yChannelSelector="G"/></filter>
+  </defs></svg>
 
   <!-- ===== FRONT PAGE ===== -->
   <section id="landing">
@@ -77,14 +84,13 @@
           </main>
 
           <div class="palette-bar">
-            <div id="curColor" class="cur-color" title="Current colour"></div>
             <div id="swatches" class="swatches"></div>
             <div class="custom-wrap">
               <button id="wheelBtn" class="tool" aria-haspopup="true"><span class="wheel-dot"></span>Custom colour</button>
               <div id="wheelPop" class="wheel-pop" hidden>
                 <canvas id="wheel" width="200" height="200"></canvas>
                 <label class="bright">Brightness <input type="range" id="bright" min="10" max="100" value="100" /></label>
-                <div class="hexrow"><span id="wheelPrev"></span><input id="hexIn" maxlength="7" value="#ff0000" spellcheck="false" /></div>
+                <div class="hexrow"><span id="wheelPrev"></span><input id="hexIn" maxlength="7" value="#e63946" spellcheck="false" /></div>
               </div>
             </div>
           </div>
@@ -156,6 +162,6 @@
 
   
 
-  <script src="script.js?v=6"></script>
+  <script src="script.js?v=7"></script>
 </body>
 </html>
