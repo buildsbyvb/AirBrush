@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=5" />
+  <link rel="stylesheet" href="style.css?v=6" />
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -28,7 +28,7 @@
       <div class="brand">AirBrush</div>
       <nav class="menubar">
         <button id="tabDraw" class="tab active">Draw</button>
-        <button id="tabAlbum" class="tab">Album</button>
+        <button id="tabAlbum" class="tab">Art gallery</button>
       </nav>
     </header>
 
@@ -39,7 +39,7 @@
           <fieldset>
             <legend>Tools</legend>
             <div class="toolgrid">
-              <button id="penBtn" class="tool active"><svg viewBox="0 0 16 16"><path d="M3 13l.8-3.2L11 2.6a1.4 1.4 0 012 2L5.8 12.2z"/><path d="M9.6 4l2.4 2.4"/></svg>Pen</button>
+              <button id="penBtn" class="tool active"><svg viewBox="0 0 16 16"><path d="M3 13l.8-3.2L11 2.6a1.4 1.4 0 012 2L5.8 12.2z"/><path d="M9.6 4l2.4 2.4"/></svg>Brush</button>
               <button id="eraserBtn" class="tool"><svg viewBox="0 0 16 16"><path d="M9.5 3.2l3.3 3.3a1 1 0 010 1.4L8.2 12.5H5L2.9 10.4a1 1 0 010-1.4l5.2-5.8a1 1 0 011.4 0z"/><path d="M6 7l4 4M8 12.5h6"/></svg>Eraser</button>
               <button id="undoBtn" class="tool"><svg viewBox="0 0 16 16"><path d="M5 3L2.5 5.5 5 8M3 5.5h6a3.5 3.5 0 010 7H6"/></svg>Undo</button>
               <button id="clearBtn" class="tool"><svg viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5M7 7v4M9 7v4"/></svg>Clear</button>
@@ -47,19 +47,11 @@
           </fieldset>
 
           <fieldset>
-            <legend>Size: <span id="sizeVal">8</span></legend>
-            <input type="range" id="size" min="2" max="40" value="8" />
+            <legend>Size: <span id="sizeVal">4</span></legend>
+            <input type="range" id="size" min="1" max="10" value="4" />
           </fieldset>
 
           <button id="doneBtn" class="btn primary wide">Done drawing</button>
-
-          <fieldset class="help">
-            <legend>Hand gestures</legend>
-            <p><b>1 finger</b> draws</p>
-            <p><b>2 fingers</b> erase</p>
-            <p><b>Open palm</b> pauses</p>
-            <p>Use the <b>mouse</b> for buttons and colours</p>
-          </fieldset>
         </aside>
 
         <div class="main-col">
@@ -132,28 +124,18 @@
               <button id="genBtn" class="btn primary wide">Generate image</button>
               <div id="genStatus" class="msg"></div>
               <img id="resultImg" alt="Generated image" hidden />
+              <button id="addGalleryBtn" class="btn primary wide" hidden>Add to gallery</button>
             </div>
           </div>
         </div>
       </section>
     </div>
 
-    <!-- ---------- ALBUM VIEW ---------- -->
+    <!-- ---------- ART GALLERY VIEW ---------- -->
     <div id="albumView" hidden>
-      <div id="albumList">
-        <h2>Album</h2>
-        <p id="albumEmpty" class="msg">No folders yet. Draw something and click "Done drawing".</p>
-        <div id="albumGrid" class="album-grid"></div>
-      </div>
-
-      <div id="folderView" hidden>
-        <div class="row folder-head">
-          <button id="folderBack" class="tool">Back to Album</button>
-          <button id="folderDelete" class="tool">Delete folder</button>
-        </div>
-        <h2 id="folderTitle">Folder</h2>
-        <div id="folderItems" class="album-grid"></div>
-      </div>
+      <h2>Art gallery</h2>
+      <p id="albumEmpty" class="msg">Your gallery is empty. Draw something, generate an image, then choose "Add to gallery".</p>
+      <div id="albumGrid" class="gallery"></div>
     </div>
 
     <footer class="statusbar">
@@ -174,6 +156,6 @@
 
   
 
-  <script src="script.js?v=5"></script>
+  <script src="script.js?v=6"></script>
 </body>
 </html>
