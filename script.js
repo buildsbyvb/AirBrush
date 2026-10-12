@@ -236,15 +236,24 @@ function getGesture(lm) {
   return "none";
 }
 
-// ---------- hand skeleton overlay (drawn on top of the webcam picture) ----------
+// ---------- hand skeleton overlay: neon "AI scan" of the hand, dots and lines only ----------
 const handCanvas = $("handCanvas"), handCtx = handCanvas.getContext("2d");
-const BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
-               [9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+const FINGERS = [
+  { ids: [1, 2, 3, 4],     c: "#ff5fd2" },   // thumb
+  { ids: [5, 6, 7, 8],     c: "#22e1ff" },   // index
+  { ids: [9, 10, 11, 12],  c: "#7c8cff" },   // middle
+  { ids: [13, 14, 15, 16], c: "#b57bff" },   // ring
+  { ids: [17, 18, 19, 20], c: "#ff8ac9" },   // pinky
+];
+const JOINT_COLOR = Array(21).fill("#ffffff");
+FINGERS.forEach((f) => f.ids.forEach((i) => (JOINT_COLOR[i] = f.c)));
+const PALM_RING = [0, 1, 5, 9, 13, 17];
+const PALM_WEB = [[0, 5], [0, 9], [0, 13], [5, 13], [9, 17], [1, 5]];
 const TIPS = [4, 8, 12, 16, 20];
-const GESTURE_LABEL = { draw: "DRAWING", erase: "ERASING", palm: "PAUSED", none: "TRACKING" };
+const trails = TIPS.map(() => []);
 const MODE_TEXT = { draw: "Drawing", erase: "Erasing", palm: "Paused", none: "Ready" };
 
-function clearHand() { handCtx.clearRect(0, 0, W, H); }
+function clearHand() { handCtx.clearRect(0, 0, W, H); trails.forEach((t) => (t.length = 0)); }
 
 // Turn a hand point (0..1 of the camera picture) into canvas pixels, exactly where it appears on the
 // webcam box. The video is mirrored and cropped to fill the box, so we must undo the same crop here.
@@ -256,67 +265,73 @@ function toCanvas(p) {
   return { x: W - x, y };
 }
 
-function drawHand(lm, g, score) {
-  const c = handCtx;
+function drawHand(lm, g) {
+  const c = handCtx, now = performance.now();
   c.clearRect(0, 0, W, H);
   const P = lm.map(toCanvas);   // same mirror and crop as the video
   c.save();
   c.lineCap = "round"; c.lineJoin = "round";
 
-  // soft palm wash
+  // 1. translucent palm surface + faint web lines
   c.beginPath();
-  [0, 1, 5, 9, 13, 17].forEach((i, k) => (k ? c.lineTo(P[i].x, P[i].y) : c.moveTo(P[i].x, P[i].y)));
+  PALM_RING.forEach((i, k) => (k ? c.lineTo(P[i].x, P[i].y) : c.moveTo(P[i].x, P[i].y)));
   c.closePath();
-  c.fillStyle = "rgba(232, 208, 154, 0.12)";
-  c.fill();
-
-  // bones: dark outline first so they stay visible on any background, then a glowing line
+  c.fillStyle = "rgba(139, 92, 246, 0.16)"; c.fill();
+  c.strokeStyle = "rgba(200, 190, 255, 0.45)"; c.lineWidth = 1.2; c.stroke();
   c.beginPath();
-  BONES.forEach(([a, b]) => { c.moveTo(P[a].x, P[a].y); c.lineTo(P[b].x, P[b].y); });
-  c.strokeStyle = "rgba(17, 27, 37, 0.75)"; c.lineWidth = 7; c.stroke();
-  c.shadowColor = "rgba(232, 208, 154, 1)"; c.shadowBlur = 12;
-  c.strokeStyle = "#f6efe0"; c.lineWidth = 3.5;
-  c.stroke();
+  PALM_WEB.forEach(([a, b]) => { c.moveTo(P[a].x, P[a].y); c.lineTo(P[b].x, P[b].y); });
+  c.strokeStyle = "rgba(200, 190, 255, 0.22)"; c.lineWidth = 1; c.stroke();
 
-  // joints (fingertips are larger and rose)
-  c.shadowBlur = 6;
+  // 2. comet trails behind each fingertip
+  TIPS.forEach((tip, k) => {
+    const tr = trails[k];
+    tr.push({ x: P[tip].x, y: P[tip].y });
+    if (tr.length > 10) tr.shift();
+    const col = JOINT_COLOR[tip];
+    for (let i = 1; i < tr.length; i++) {
+      const f = i / tr.length;
+      c.globalAlpha = f * 0.6; c.strokeStyle = col; c.lineWidth = 1 + f * 5;
+      c.beginPath(); c.moveTo(tr[i - 1].x, tr[i - 1].y); c.lineTo(tr[i].x, tr[i].y); c.stroke();
+    }
+  });
+  c.globalAlpha = 1;
+
+  // 3. glowing finger bones, then a bright white core line on top
+  FINGERS.forEach((f) => {
+    c.beginPath();
+    c.moveTo(P[f.ids[0]].x, P[f.ids[0]].y);
+    f.ids.forEach((i) => c.lineTo(P[i].x, P[i].y));
+    c.shadowColor = f.c; c.shadowBlur = 18; c.strokeStyle = f.c; c.lineWidth = 5; c.stroke();
+    c.shadowBlur = 0; c.strokeStyle = "rgba(255, 255, 255, 0.9)"; c.lineWidth = 1.6; c.stroke();
+  });
+
+  // 4. joint dots: soft halo + white core + coloured ring
   P.forEach((p, i) => {
-    const tip = TIPS.includes(i);
-    c.beginPath(); c.arc(p.x, p.y, tip ? 7 : 4.5, 0, Math.PI * 2);
-    c.fillStyle = tip ? "#d98f98" : "#c2a066"; c.fill();
-    c.lineWidth = 1.5; c.strokeStyle = "#111b25"; c.stroke();
+    const tip = TIPS.includes(i), col = JOINT_COLOR[i];
+    c.beginPath(); c.arc(p.x, p.y, tip ? 12 : 8.5, 0, Math.PI * 2);
+    c.fillStyle = col; c.globalAlpha = 0.22; c.fill(); c.globalAlpha = 1;
+    c.beginPath(); c.arc(p.x, p.y, tip ? 5.5 : 3.8, 0, Math.PI * 2);
+    c.shadowColor = col; c.shadowBlur = 12;
+    c.fillStyle = "#fff"; c.fill();
+    c.shadowBlur = 0; c.lineWidth = 2; c.strokeStyle = col; c.stroke();
   });
-  c.shadowBlur = 0;
 
-  // targeting crosshair on the drawing point
-  const t = g === "erase" ? { x: (P[8].x + P[12].x) / 2, y: (P[8].y + P[12].y) / 2 } : P[8];
-  c.setLineDash([4, 5]); c.lineWidth = 1; c.strokeStyle = "rgba(232, 208, 154, 0.6)";
-  c.beginPath();
-  c.moveTo(t.x - 30, t.y); c.lineTo(t.x + 30, t.y);
-  c.moveTo(t.x, t.y - 30); c.lineTo(t.x, t.y + 30);
-  c.stroke();
-  c.setLineDash([]);
-
-  // scanner corner brackets around the hand
-  const xs = P.map((p) => p.x), ys = P.map((p) => p.y), pad = 18;
-  const x0 = Math.max(2, Math.min(...xs) - pad), x1 = Math.min(W - 2, Math.max(...xs) + pad);
-  const y0 = Math.max(2, Math.min(...ys) - pad), y1 = Math.min(H - 2, Math.max(...ys) + pad);
-  const L = Math.max(8, Math.min(22, (x1 - x0) / 3, (y1 - y0) / 3));
-  c.strokeStyle = "#e8d09a"; c.lineWidth = 2;
-  c.beginPath();
-  [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]].forEach(([x, y, dx, dy]) => {
-    c.moveTo(x + dx * L, y); c.lineTo(x, y); c.lineTo(x, y + dy * L);
+  // 5. fingertips pulse like radar pings
+  TIPS.forEach((tip, k) => {
+    const r = 15 + 5 * Math.sin(now / 230 + k * 1.3);
+    c.globalAlpha = 0.55; c.lineWidth = 1.5; c.strokeStyle = JOINT_COLOR[tip];
+    c.beginPath(); c.arc(P[tip].x, P[tip].y, r, 0, Math.PI * 2); c.stroke();
   });
-  c.stroke();
+  c.globalAlpha = 1;
 
-  // label tag
-  const label = `HAND ${score ? Math.round(score * 100) + "%" : ""}  /  ${GESTURE_LABEL[g] || "TRACKING"}`;
-  c.font = "600 12px Jost, Arial, sans-serif";
-  const tw = c.measureText(label).width + 14;
-  const ty = y0 > 24 ? y0 - 22 : y1 + 4;
-  c.fillStyle = "rgba(17, 27, 37, 0.82)"; c.fillRect(x0, ty, tw, 18);
-  c.strokeStyle = "rgba(232, 208, 154, 0.7)"; c.lineWidth = 1; c.strokeRect(x0 + 0.5, ty + 0.5, tw, 18);
-  c.fillStyle = "#e8d09a"; c.fillText(label, x0 + 7, ty + 13);
+  // 6. spinning dashed ring on the point that is drawing or erasing
+  if (g === "draw" || g === "erase") {
+    const t = g === "erase" ? { x: (P[8].x + P[12].x) / 2, y: (P[8].y + P[12].y) / 2 } : P[8];
+    c.setLineDash([4, 7]); c.lineDashOffset = -now / 35;
+    c.lineWidth = 2; c.strokeStyle = g === "erase" ? "#ff5f7a" : "#ffffff";
+    c.beginPath(); c.arc(t.x, t.y, 27, 0, Math.PI * 2); c.stroke();
+    c.setLineDash([]);
+  }
   c.restore();
 }
 
@@ -350,8 +365,7 @@ function onResults(results) {
   if (raw === stableGesture) { gestureCount = 0; }
   else if (++gestureCount >= 3) { stableGesture = raw; gestureCount = 0; current = null; }
   const g = stableGesture;
-  const score = results.multiHandedness && results.multiHandedness[0] ? results.multiHandedness[0].score : null;
-  try { drawHand(lm, g, score); } catch (e) { console.error("skeleton error", e); }
+  try { drawHand(lm, g); } catch (e) { console.error("skeleton error", e); }
 
   // drawing is paused while the "Done drawing" panel or the Album is open
   if (!drawEnabled) { current = null; lastPoint = null; showCursor(null); setMode("Idle"); return; }
@@ -411,8 +425,7 @@ function askConfirm(msg) {
 }
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("dlg").hidden) $("dlgNo").click(); });
 
-// front-page colour strip + current colour box
-COLORS.slice(0, 28).forEach((c) => { const i = document.createElement("i"); i.style.background = c; $("ornament").appendChild(i); });
+// current colour box
 $("curColor").style.background = color;
 
 // ---------- start camera + hand tracking ----------
@@ -432,7 +445,7 @@ async function startApp() {
     return;
   }
 
-  console.log("AirBrush v4 loaded");
+  console.log("AirBrush v5 loaded");
   statusEl.textContent = "Loading hand tracking (first time takes a few seconds)…";
   const hands = new Hands({
     locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}`,
@@ -456,6 +469,52 @@ async function startApp() {
   }
   loop();
 }
+
+// ---------- front page: a spray of light that follows the pointer, like painting in the air ----------
+(function () {
+  const cv = $("fx"), ctx = cv.getContext("2d"), landing = $("landing");
+  const HUES = [265, 300, 190, 330];
+  const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let parts = [], dpr = 1, last = null;
+  function fit() { dpr = Math.min(window.devicePixelRatio || 1, 2); cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; }
+  fit(); addEventListener("resize", fit);
+  function spray(x, y) {
+    for (let i = 0; i < 5 && parts.length < 700; i++) {
+      const a = Math.random() * 6.283, r = Math.random() * 16;
+      parts.push({ x: x + Math.cos(a) * r, y: y + Math.sin(a) * r, vx: (Math.random() - 0.5) * 0.7, vy: (Math.random() - 0.5) * 0.7 - 0.15,
+                   life: 1, s: 2 + Math.random() * 8, hue: HUES[(Math.random() * HUES.length) | 0] });
+    }
+  }
+  function brushTo(x, y) {
+    if (last) {
+      const d = Math.hypot(x - last.x, y - last.y), n = Math.ceil(d / 10);
+      for (let i = 1; i <= n; i++) spray(last.x + (x - last.x) * i / n, last.y + (y - last.y) * i / n);
+    } else spray(x, y);
+    last = { x, y };
+  }
+  landing.addEventListener("pointermove", (e) => brushTo(e.clientX, e.clientY));
+  landing.addEventListener("pointerleave", () => (last = null));
+  const t0 = performance.now(), SWEEP = 2400;
+  function frame(now) {
+    if (landing.hidden) return;
+    if (!calm && now - t0 < SWEEP) {            // one opening stroke so the page paints itself on load
+      const k = (now - t0) / SWEEP;
+      brushTo(innerWidth * (0.08 + 0.84 * k), innerHeight * (0.52 + Math.sin(k * 7) * 0.13 - k * 0.04));
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalCompositeOperation = "lighter";
+    parts = parts.filter((p) => p.life > 0);
+    for (const p of parts) {
+      p.x += p.vx; p.y += p.vy; p.life -= 0.012;
+      ctx.fillStyle = `hsla(${p.hue}, 95%, 62%, ${p.life * 0.22})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.s * (0.6 + p.life * 0.6), 0, 6.283); ctx.fill();
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
 
 $("startBtn").onclick = () => {
   $("landing").hidden = true;
