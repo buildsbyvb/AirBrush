@@ -6,25 +6,22 @@
   <title>AirBrush</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=8" />
+  <!-- "Dream" brush-script reference: closest licensed match is Kaushan Script (SIL Open Font License) -->
+  <link href="https://fonts.googleapis.com/css2?family=Kaushan+Script&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=9" />
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
 </head>
 <body>
-  <!-- painted background: inked blues, white mist and a warm cream cloud -->
-  <div class="bg" aria-hidden="true">
-    <div class="ink-wrap"><div class="ink"><i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i><i class="b5"></i></div></div>
-  </div>
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
-    <filter id="inkwarp" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.0045 0.007" numOctaves="3" seed="11" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="220" xChannelSelector="R" yChannelSelector="G"/></filter>
-  </defs></svg>
+  <!-- paper background (grain is drawn by CSS) -->
+  <div class="bg" aria-hidden="true"></div>
 
   <!-- ===== FRONT PAGE ===== -->
   <section id="landing">
     <canvas id="fx" aria-hidden="true"></canvas>
     <div class="welcome">
       <h1>AirBrush</h1>
-      <button id="startBtn" class="btn primary">Get started</button>
+      <p class="tagline">A painter's book for drawing in the air</p>
+      <button id="startBtn" class="btn primary">Start Creating</button>
     </div>
   </section>
 
@@ -174,6 +171,6 @@
 
   
 
-  <script src="script.js?v=8"></script>
+  <script src="script.js?v=9"></script>
 </body>
 </html>
