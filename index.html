@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=7" />
+  <link rel="stylesheet" href="style.css?v=8" />
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -42,12 +42,18 @@
     <!-- ---------- DRAW VIEW ---------- -->
     <div id="drawView">
       <div class="workspace">
-        <aside class="tools">
+        <aside class="tools" aria-label="Drawing tools">
           <fieldset>
             <legend>Tools</legend>
             <div class="toolgrid">
-              <button id="penBtn" class="tool active"><svg viewBox="0 0 16 16"><path d="M3 13l.8-3.2L11 2.6a1.4 1.4 0 012 2L5.8 12.2z"/><path d="M9.6 4l2.4 2.4"/></svg>Brush</button>
-              <button id="eraserBtn" class="tool"><svg viewBox="0 0 16 16"><path d="M9.5 3.2l3.3 3.3a1 1 0 010 1.4L8.2 12.5H5L2.9 10.4a1 1 0 010-1.4l5.2-5.8a1 1 0 011.4 0z"/><path d="M6 7l4 4M8 12.5h6"/></svg>Eraser</button>
+              <button id="penBtn" class="tool active" aria-pressed="true"><svg viewBox="0 0 16 16"><path d="M3 13l.8-3.2L11 2.6a1.4 1.4 0 012 2L5.8 12.2z"/><path d="M9.6 4l2.4 2.4"/></svg>Brush</button>
+              <button id="eraserBtn" class="tool" aria-pressed="false"><svg viewBox="0 0 16 16"><path d="M9.5 3.2l3.3 3.3a1 1 0 010 1.4L8.2 12.5H5L2.9 10.4a1 1 0 010-1.4l5.2-5.8a1 1 0 011.4 0z"/><path d="M6 7l4 4M8 12.5h6"/></svg>Eraser</button>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Edit</legend>
+            <div class="toolgrid">
               <button id="undoBtn" class="tool"><svg viewBox="0 0 16 16"><path d="M5 3L2.5 5.5 5 8M3 5.5h6a3.5 3.5 0 010 7H6"/></svg>Undo</button>
               <button id="clearBtn" class="tool"><svg viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5M7 7v4M9 7v4"/></svg>Clear</button>
             </div>
@@ -55,10 +61,29 @@
 
           <fieldset>
             <legend>Size: <span id="sizeVal">4</span></legend>
-            <input type="range" id="size" min="1" max="10" value="4" />
+            <input type="range" id="size" min="1" max="10" value="4" step="1" aria-label="Brush and eraser size" />
           </fieldset>
 
-          <button id="doneBtn" class="btn primary wide">Done drawing</button>
+          <fieldset>
+            <legend>Color</legend>
+            <div id="swatches" class="swatches" role="group" aria-label="Color palette"></div>
+            <div class="custom-wrap">
+              <button id="wheelBtn" class="tool" aria-haspopup="true"><span id="wheelDot" class="wheel-dot"></span>Custom color</button>
+              <div id="wheelPop" class="wheel-pop" hidden>
+                <canvas id="wheel" width="200" height="200"></canvas>
+                <label class="bright">Brightness <input type="range" id="bright" min="10" max="100" value="100" /></label>
+                <div class="hexrow"><span id="wheelPrev"></span><input id="hexIn" maxlength="7" value="#ee3b45" spellcheck="false" aria-label="Hex color code" /></div>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Drawing</legend>
+            <div id="drawState" class="state on" role="status"><i></i><span id="drawStateText">Drawing active</span></div>
+            <button id="doneBtn" class="btn primary wide">Done drawing</button>
+            <button id="resumeBtn" class="btn wide" disabled>Resume drawing</button>
+            <p id="sideMsg" class="side-msg" aria-live="polite"></p>
+          </fieldset>
         </aside>
 
         <div class="main-col">
@@ -82,18 +107,6 @@
               </div>
             </div>
           </main>
-
-          <div class="palette-bar">
-            <div id="swatches" class="swatches"></div>
-            <div class="custom-wrap">
-              <button id="wheelBtn" class="tool" aria-haspopup="true"><span class="wheel-dot"></span>Custom colour</button>
-              <div id="wheelPop" class="wheel-pop" hidden>
-                <canvas id="wheel" width="200" height="200"></canvas>
-                <label class="bright">Brightness <input type="range" id="bright" min="10" max="100" value="100" /></label>
-                <div class="hexrow"><span id="wheelPrev"></span><input id="hexIn" maxlength="7" value="#e63946" spellcheck="false" /></div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -104,10 +117,6 @@
           <div class="finish-grid">
             <div class="finish-left">
               <img id="doneImg" alt="Your drawing" />
-              <div class="row">
-                <button id="downloadDrawing" class="tool">Download drawing</button>
-                <button id="backToDraw" class="tool">Back to drawing</button>
-              </div>
             </div>
 
             <div class="finish-right">
@@ -116,13 +125,16 @@
                 <textarea id="subject" rows="1" placeholder="e.g. a tree"></textarea>
                 <button id="micBtn2" class="tool mic" title="Speak what you have drawn" aria-label="Speak what you have drawn"><svg viewBox="0 0 16 16"><rect x="6" y="1" width="4" height="8" rx="2"/><path d="M3 7a5 5 0 0010 0M8 12v3M5 15h6"/></svg></button>
               </div>
-              <p class="hint">Naming your drawing helps the image match your shapes and colours.</p>
+              <p id="subjectMsg" class="mic-msg" aria-live="polite"></p>
+              <p class="hint">Naming your drawing helps the image match your shapes and colors.</p>
 
               <h3>Would you like anything added? <small>(optional)</small></h3>
               <div class="desc-wrap">
                 <textarea id="desc" rows="2" placeholder="e.g. add a red apple on the tree"></textarea>
                 <button id="micBtn" class="tool mic" title="Speak what you would like added" aria-label="Speak what you would like added"><svg viewBox="0 0 16 16"><rect x="6" y="1" width="4" height="8" rx="2"/><path d="M3 7a5 5 0 0010 0M8 12v3M5 15h6"/></svg></button>
               </div>
+
+              <p id="descMsg" class="mic-msg" aria-live="polite"></p>
 
               <h3>Choose the output style</h3>
               <div id="styles" class="chips"></div>
@@ -162,6 +174,6 @@
 
   
 
-  <script src="script.js?v=7"></script>
+  <script src="script.js?v=8"></script>
 </body>
 </html>
