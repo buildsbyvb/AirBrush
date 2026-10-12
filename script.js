@@ -11,7 +11,7 @@ const paintCtx = paintCanvas.getContext("2d");
 const statusEl = $("status");
 
 // ---------- state ----------
-let color = "#ff0000";
+let color = "#e63946";
 let size = 4;
 let tool = "pen";
 let strokes = [];
@@ -54,16 +54,20 @@ STYLES.forEach((s) => {
 });
 
 // ---------- colour swatches ----------
-const COLORS = [
-  "#000000", "#555555", "#9a9a9a", "#ffffff", "#ff0000", "#ffe600", "#0047ff", "#ff8000", "#1faa3c", "#8a2be2",
-  "#ffb300", "#ff4500", "#9acd32", "#00a693", "#00d4ff", "#7ec8ff", "#001f7a", "#ff7eb6",
-  "#ff00ff", "#c3a6ff", "#98f5c3", "#ffcba4", "#d4a017", "#7b4a1e", "#800000", "#808000",
+// [hex, name]: the name is what the AI is told when it recreates your colours
+const PALETTE = [
+  ["#1a1625", "black"], ["#4a4660", "slate grey"], ["#9a97ad", "light grey"], ["#fbf7ef", "white"],
+  ["#e63946", "crimson red"], ["#ff6b5e", "coral"], ["#ff9a4d", "orange"], ["#c9822b", "ochre"], ["#ffc65c", "golden yellow"], ["#fde68a", "pale yellow"],
+  ["#b9d96c", "lime green"], ["#5f7a4a", "moss green"], ["#3ec28f", "emerald green"], ["#2a8f7b", "teal"], ["#19c6d9", "turquoise"],
+  ["#58a6ff", "sky blue"], ["#2f5bea", "cobalt blue"], ["#1e2f8a", "navy blue"], ["#7c5cff", "violet"], ["#b794f6", "lavender"],
+  ["#d946ef", "fuchsia"], ["#ff7eb6", "pink"], ["#f9c5d1", "light pink"], ["#8c2f4b", "burgundy"], ["#8a5a3c", "brown"], ["#e8c9a0", "sand beige"],
 ];
+const COLORS = PALETTE.map((p) => p[0]);
 const swatchBox = $("swatches");
 COLORS.forEach((c) => {
   const d = document.createElement("div");
   d.className = "swatch" + (c === color ? " active" : "");
-  d.style.background = c;
+  d.style.backgroundColor = c;
   d.dataset.color = c;
   d.title = c;
   d.onclick = () => setColor(c);
@@ -71,7 +75,6 @@ COLORS.forEach((c) => {
 });
 function setColor(c, fromWheel) {
   color = c.toLowerCase();
-  $("curColor").style.background = color;
   $("hexIn").value = color;
   $("wheelPrev").style.background = color;
   document.querySelectorAll(".swatch").forEach((s) =>
@@ -227,12 +230,13 @@ function getGesture(lm) {
   return "none";
 }
 
-// ---------- hand skeleton overlay (plain lines and dots on top of the webcam picture) ----------
+// ---------- hand skeleton overlay: coloured bones drawn over your hand ----------
 const handCanvas = $("handCanvas"), handCtx = handCanvas.getContext("2d");
-const BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
-               [9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
-const TIPS = [4, 8, 12, 16, 20];
 const MODE_TEXT = { draw: "Drawing", erase: "Erasing", palm: "Paused", none: "Ready" };
+const BONE_COL = { carpal: "#c9a7ef", meta: "#ecc76a", prox: "#b5d98a", mid: "#8fb8e8", dist: "#f4a583" };
+const BONE_W = { meta: 13, prox: 11, mid: 9.5, dist: 8.5 };
+const OUTLINE = "#2b2a3a";
+const lerp = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
 
 function clearHand() { handCtx.clearRect(0, 0, W, H); }
 
@@ -250,21 +254,38 @@ function drawHand(lm) {
   const c = handCtx;
   c.clearRect(0, 0, W, H);
   const P = lm.map(toCanvas);   // same mirror and crop as the video
+  const s = Math.min(1.5, Math.max(0.55, Math.hypot(P[0].x - P[9].x, P[0].y - P[9].y) / 115));   // bone size follows hand size
   c.save();
   c.lineCap = "round"; c.lineJoin = "round";
 
-  // bones: a dark line underneath so they show on any background, then a white line
-  c.beginPath();
-  BONES.forEach(([a, b]) => { c.moveTo(P[a].x, P[a].y); c.lineTo(P[b].x, P[b].y); });
-  c.strokeStyle = "rgba(0, 0, 0, 0.55)"; c.lineWidth = 6; c.stroke();
-  c.strokeStyle = "#ffffff"; c.lineWidth = 3; c.stroke();
+  // wrist bones (purple)
+  const wrist = [lerp(P[0], P[1], 0.75), lerp(P[0], P[5], 0.5), lerp(P[0], P[9], 0.45), lerp(P[0], P[13], 0.45), lerp(P[0], P[17], 0.5), lerp(P[0], P[17], 0.85), P[0]];
+  c.beginPath(); wrist.forEach((p, i) => (i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y))); c.closePath();
+  c.strokeStyle = OUTLINE; c.lineWidth = 10 * s + 3; c.stroke();
+  c.strokeStyle = BONE_COL.carpal; c.fillStyle = BONE_COL.carpal; c.lineWidth = 10 * s; c.stroke(); c.fill();
 
-  // joints: plain dots (fingertips are a little bigger)
-  P.forEach((p, i) => {
-    c.beginPath(); c.arc(p.x, p.y, TIPS.includes(i) ? 6.5 : 4.5, 0, Math.PI * 2);
-    c.fillStyle = "#8b5cf6"; c.fill();
-    c.lineWidth = 2; c.strokeStyle = "#ffffff"; c.stroke();
-  });
+  // one bone = a shaft with rounded knobs at both ends, dark outline, small highlight
+  function bone(a, b, kind) {
+    const w = BONE_W[kind] * s, r = w * 0.62;
+    const d = Math.hypot(b.x - a.x, b.y - a.y) || 1, ux = (b.x - a.x) / d, uy = (b.y - a.y) / d;
+    const inset = Math.min(r * 0.85, d * 0.3);
+    const a2 = { x: a.x + ux * inset, y: a.y + uy * inset }, b2 = { x: b.x - ux * inset, y: b.y - uy * inset };
+    for (const pass of [0, 1]) {
+      const extra = pass ? 0 : 3;
+      c.strokeStyle = c.fillStyle = pass ? BONE_COL[kind] : OUTLINE;
+      c.lineWidth = w * 0.78 + extra;
+      c.beginPath(); c.moveTo(a2.x, a2.y); c.lineTo(b2.x, b2.y); c.stroke();
+      [a2, b2].forEach((p) => { c.beginPath(); c.arc(p.x, p.y, r + extra / 2, 0, Math.PI * 2); c.fill(); });
+    }
+    c.strokeStyle = "rgba(255, 255, 255, 0.35)"; c.lineWidth = w * 0.16;
+    c.beginPath(); c.moveTo(a2.x - uy * w * 0.2, a2.y + ux * w * 0.2); c.lineTo(b2.x - uy * w * 0.2, b2.y + ux * w * 0.2); c.stroke();
+  }
+
+  bone(P[1], P[2], "meta");                                             // thumb: base bone
+  [5, 9, 13, 17].forEach((m) => bone(lerp(P[0], P[m], 0.42), P[m], "meta"));   // palm bones (yellow)
+  [[5, 6], [9, 10], [13, 14], [17, 18], [2, 3]].forEach(([a, b]) => bone(P[a], P[b], "prox"));   // green
+  [[6, 7], [10, 11], [14, 15], [18, 19]].forEach(([a, b]) => bone(P[a], P[b], "mid"));           // blue
+  [[7, 8], [11, 12], [15, 16], [19, 20], [3, 4]].forEach(([a, b]) => bone(P[a], P[b], "dist"));  // orange (fingertips)
   c.restore();
 }
 
@@ -363,8 +384,7 @@ function askConfirm(msg) {
 }
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("dlg").hidden) $("dlgNo").click(); });
 
-// current colour box
-$("curColor").style.background = color;
+$("hexIn").value = color; $("wheelPrev").style.background = color;
 
 // ---------- start camera + hand tracking ----------
 async function startApp() {
@@ -383,7 +403,7 @@ async function startApp() {
     return;
   }
 
-  console.log("AirBrush v6 loaded");
+  console.log("AirBrush v7 loaded");
   statusEl.textContent = "Loading hand tracking (first time takes a few seconds)…";
   const hands = new Hands({
     locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}`,
@@ -408,47 +428,56 @@ async function startApp() {
   loop();
 }
 
-// ---------- front page: a spray of light that follows the pointer, like painting in the air ----------
+// ---------- front page: brush strokes that follow the pointer, then fade away ----------
 (function () {
   const cv = $("fx"), ctx = cv.getContext("2d"), landing = $("landing");
-  const HUES = [265, 300, 190, 330];
+  const INKS = ["#ffe2b0", "#9bd8ff", "#ffffff", "#5b8cff", "#ffb38a"];
+  const LIFE = 1700;   // how long a stroke stays (ms)
   const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let parts = [], dpr = 1, last = null;
+  let strokes = [], cur = null, nextInk = 0, dpr = 1;
   function fit() { dpr = Math.min(window.devicePixelRatio || 1, 2); cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; }
   fit(); addEventListener("resize", fit);
-  function spray(x, y) {
-    for (let i = 0; i < 5 && parts.length < 700; i++) {
-      const a = Math.random() * 6.283, r = Math.random() * 16;
-      parts.push({ x: x + Math.cos(a) * r, y: y + Math.sin(a) * r, vx: (Math.random() - 0.5) * 0.7, vy: (Math.random() - 0.5) * 0.7 - 0.15,
-                   life: 1, s: 2 + Math.random() * 8, hue: HUES[(Math.random() * HUES.length) | 0] });
+  function add(x, y) {
+    const now = performance.now();
+    if (!cur || now - cur.last > 140) {
+      cur = { pts: [], last: now, ink: INKS[nextInk++ % INKS.length],
+              hairs: Array.from({ length: 7 }, () => ({ o: Math.random() * 2 - 1, w: 0.6 + Math.random() * 1.6, a: 0.25 + Math.random() * 0.5 })) };
+      strokes.push(cur);
     }
+    const p = cur.pts[cur.pts.length - 1];
+    if (p && Math.hypot(x - p.x, y - p.y) < 4) return;
+    cur.pts.push({ x, y, t: now }); cur.last = now;
   }
-  function brushTo(x, y) {
-    if (last) {
-      const d = Math.hypot(x - last.x, y - last.y), n = Math.ceil(d / 10);
-      for (let i = 1; i <= n; i++) spray(last.x + (x - last.x) * i / n, last.y + (y - last.y) * i / n);
-    } else spray(x, y);
-    last = { x, y };
-  }
-  landing.addEventListener("pointermove", (e) => brushTo(e.clientX, e.clientY));
-  landing.addEventListener("pointerleave", () => (last = null));
+  landing.addEventListener("pointermove", (e) => add(e.clientX, e.clientY));
+  landing.addEventListener("pointerleave", () => (cur = null));
   const t0 = performance.now(), SWEEP = 2400;
   function frame(now) {
     if (landing.hidden) return;
     if (!calm && now - t0 < SWEEP) {            // one opening stroke so the page paints itself on load
       const k = (now - t0) / SWEEP;
-      brushTo(innerWidth * (0.08 + 0.84 * k), innerHeight * (0.52 + Math.sin(k * 7) * 0.13 - k * 0.04));
+      add(innerWidth * (0.08 + 0.84 * k), innerHeight * (0.52 + Math.sin(k * 7) * 0.13 - k * 0.04));
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, cv.width, cv.height);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.globalCompositeOperation = "lighter";
-    parts = parts.filter((p) => p.life > 0);
-    for (const p of parts) {
-      p.x += p.vx; p.y += p.vy; p.life -= 0.012;
-      ctx.fillStyle = `hsla(${p.hue}, 95%, 62%, ${p.life * 0.22})`;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.s * (0.6 + p.life * 0.6), 0, 6.283); ctx.fill();
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    strokes = strokes.filter((s) => { s.pts = s.pts.filter((p) => now - p.t < LIFE); return s.pts.length > 0; });
+    if (cur && !strokes.includes(cur)) cur = null;
+    for (const s of strokes) {
+      ctx.strokeStyle = s.ink;
+      for (let i = 1; i < s.pts.length; i++) {
+        const a = s.pts[i - 1], b = s.pts[i], f = 1 - (now - b.t) / LIFE;   // 1 = fresh paint, 0 = gone
+        const half = 16 * (0.3 + 0.7 * f);
+        const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
+        ctx.globalAlpha = 0.32 * f; ctx.lineWidth = half * 1.6;                 // wet body of the stroke
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        for (const h of s.hairs) {                                              // bristle streaks
+          ctx.globalAlpha = h.a * f; ctx.lineWidth = h.w;
+          ctx.beginPath(); ctx.moveTo(a.x + nx * h.o * half, a.y + ny * h.o * half); ctx.lineTo(b.x + nx * h.o * half, b.y + ny * h.o * half); ctx.stroke();
+        }
+      }
     }
+    ctx.globalAlpha = 1;
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
@@ -509,6 +538,7 @@ const COLOR_NAMES = {
   "#ff00ff": "magenta", "#ffff80": "pale yellow", "#00ff80": "mint green", "#80ffff": "light cyan",
   "#8080ff": "periwinkle blue", "#ff0080": "pink", "#ff8040": "orange", "#ffc0cb": "light pink",
 };
+PALETTE.forEach(([hex, name]) => (COLOR_NAMES[hex] = name));
 function nearestColorName(hex) {
   const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   const [r, g, b] = rgb(hex);
