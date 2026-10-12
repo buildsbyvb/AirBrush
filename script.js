@@ -11,7 +11,7 @@ const paintCtx = paintCanvas.getContext("2d");
 const statusEl = $("status");
 
 // ---------- state ----------
-let color = "#e63946";
+let color = "#ee3b45";
 let size = 4;
 let tool = "pen";
 let strokes = [];
@@ -54,32 +54,34 @@ STYLES.forEach((s) => {
 });
 
 // ---------- colour swatches ----------
-// [hex, name]: the name is what the AI is told when it recreates your colours
+// [hex, name]: the name is what the AI is told when it recreates your colors
 const PALETTE = [
-  ["#1a1625", "black"], ["#4a4660", "slate grey"], ["#9a97ad", "light grey"], ["#fbf7ef", "white"],
-  ["#e63946", "crimson red"], ["#ff6b5e", "coral"], ["#ff9a4d", "orange"], ["#c9822b", "ochre"], ["#ffc65c", "golden yellow"], ["#fde68a", "pale yellow"],
-  ["#b9d96c", "lime green"], ["#5f7a4a", "moss green"], ["#3ec28f", "emerald green"], ["#2a8f7b", "teal"], ["#19c6d9", "turquoise"],
-  ["#58a6ff", "sky blue"], ["#2f5bea", "cobalt blue"], ["#1e2f8a", "navy blue"], ["#7c5cff", "violet"], ["#b794f6", "lavender"],
-  ["#d946ef", "fuchsia"], ["#ff7eb6", "pink"], ["#f9c5d1", "light pink"], ["#8c2f4b", "burgundy"], ["#8a5a3c", "brown"], ["#e8c9a0", "sand beige"],
+  ["#ee3b45", "bright red"], ["#ff8a3d", "orange"], ["#ffd23f", "bright yellow"], ["#a6e04a", "lime green"], ["#22b36b", "green"],
+  ["#19d3e6", "cyan"], ["#5aaeff", "sky blue"], ["#2f5bea", "blue"], ["#8b4fe0", "purple"], ["#ff7eb6", "pink"],
+  ["#e22fc4", "magenta"], ["#8a5a3c", "brown"], ["#14121c", "black"], ["#ffffff", "white"], ["#8e8ea0", "grey"],
 ];
 const COLORS = PALETTE.map((p) => p[0]);
 const swatchBox = $("swatches");
-COLORS.forEach((c) => {
-  const d = document.createElement("div");
+PALETTE.forEach(([c, name]) => {
+  const d = document.createElement("button");
+  d.type = "button";
   d.className = "swatch" + (c === color ? " active" : "");
   d.style.backgroundColor = c;
   d.dataset.color = c;
-  d.title = c;
+  d.title = name;
+  d.setAttribute("aria-label", name);
   d.onclick = () => setColor(c);
   swatchBox.appendChild(d);
 });
 function setColor(c, fromWheel) {
   color = c.toLowerCase();
+  current = null;   // the next stroke starts fresh in the new color; strokes already drawn keep their own color
   $("hexIn").value = color;
   $("wheelPrev").style.background = color;
-  document.querySelectorAll(".swatch").forEach((s) =>
-    s.classList.toggle("active", s.dataset.color === color)
-  );
+  document.querySelectorAll(".swatch").forEach((s) => s.classList.toggle("active", s.dataset.color === color));
+  const custom = !COLORS.includes(color);
+  $("wheelBtn").classList.toggle("active", custom);
+  $("wheelDot").style.background = custom ? color : "";
   if (!fromWheel) syncWheel(color);
   setTool("pen");
 }
@@ -144,6 +146,7 @@ $("bright").oninput = (e) => {
 $("hexIn").oninput = (e) => {
   let v = e.target.value.trim();
   if (v && v[0] !== "#") v = "#" + v;
+  if (/^#[0-9a-f]{3}$/i.test(v)) v = "#" + [...v.slice(1)].map((x) => x + x).join("");
   if (/^#[0-9a-f]{6}$/i.test(v)) setColor(v);
 };
 $("wheelBtn").onclick = () => {
@@ -157,16 +160,35 @@ document.addEventListener("mousedown", (e) => {
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("wheelPop").hidden = true; });
 
 // ---------- size / tool / undo / clear ----------
-$("size").oninput = (e) => { size = +e.target.value; $("sizeVal").textContent = size; };
+let sideTimer = null;
+function sideSay(t) { const el = $("sideMsg"); el.textContent = t; clearTimeout(sideTimer); sideTimer = setTimeout(() => (el.textContent = ""), 3500); }
+$("size").oninput = (e) => { size = +e.target.value; $("sizeVal").textContent = size; current = null; };   // applies to the very next stroke
 function setTool(t) {
-  tool = t;
+  tool = t; current = null;   // switching never touches the drawing, it only ends the stroke in progress
   $("penBtn").classList.toggle("active", t === "pen");
   $("eraserBtn").classList.toggle("active", t === "eraser");
+  $("penBtn").setAttribute("aria-pressed", t === "pen");
+  $("eraserBtn").setAttribute("aria-pressed", t === "eraser");
 }
 $("penBtn").onclick = () => setTool("pen");
 $("eraserBtn").onclick = () => setTool("eraser");
-$("undoBtn").onclick = () => { current = null; strokes.pop(); redraw(); };
-$("clearBtn").onclick = () => { current = null; strokes = []; redraw(); };
+$("undoBtn").onclick = () => {
+  if (!strokes.length) { sideSay("Nothing to undo."); return; }
+  current = null; strokes.pop(); redraw();
+};
+$("clearBtn").onclick = async () => {
+  if (!strokes.length) { sideSay("The canvas is already empty."); return; }
+  if (!(await askConfirm("Clear the whole drawing? This can't be undone."))) return;
+  current = null; strokes = []; redraw();
+};
+
+// one place that switches hand-drawing on or off; hand tracking itself keeps running either way
+function setDrawing(on) {
+  drawEnabled = on; current = null; lastPoint = null;
+  $("drawState").className = "state " + (on ? "on" : "off");
+  $("drawStateText").textContent = on ? "Drawing active" : "Drawing paused";
+  $("resumeBtn").disabled = on;
+}
 
 // ---------- drawing helpers ----------
 function segment(ctx, s, a, b) {
@@ -312,8 +334,10 @@ function onResults(results) {
   if (!drawEnabled) {
     current = null; lastPoint = null; stableGesture = "none"; gestureCount = 0;
     pointerExitTime = performance.now();   // when drawing resumes, wait a moment before the first mark
-    showCursor(null); clearHand(); setMode("Locked");
-    if (currentView === "draw") statusEl.textContent = "Drawing is locked. Click Back to drawing to continue.";
+    showCursor(null); setMode("Paused");
+    const hs = results.multiHandLandmarks;
+    if (hs && hs.length && currentView === "draw") { try { drawHand(hs[0]); } catch (err) { console.error(err); } } else clearHand();
+    if (currentView === "draw") statusEl.textContent = "Drawing is paused. Click Resume drawing to continue.";
     return;
   }
   const hands = results.multiHandLandmarks;
@@ -329,6 +353,7 @@ function onResults(results) {
   const g = stableGesture;
   try { drawHand(lm); } catch (e) { console.error("skeleton error", e); }
 
+  if (!$("dlg").hidden) { current = null; lastPoint = null; showCursor(null); return; }
   const now = performance.now();
   let fx = lm[8].x, fy = lm[8].y;
   if (g === "erase") { fx = (lm[8].x + lm[12].x) / 2; fy = (lm[8].y + lm[12].y) / 2; }
@@ -403,7 +428,7 @@ async function startApp() {
     return;
   }
 
-  console.log("AirBrush v7 loaded");
+  console.log("AirBrush v8 loaded");
   statusEl.textContent = "Loading hand tracking (first time takes a few seconds)…";
   const hands = new Hands({
     locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}`,
@@ -428,50 +453,45 @@ async function startApp() {
   loop();
 }
 
-// ---------- front page: brush strokes that follow the pointer, then fade away ----------
+// ---------- front page: light paint strokes that follow the mouse and fade away ----------
 (function () {
   const cv = $("fx"), ctx = cv.getContext("2d"), landing = $("landing");
-  const INKS = ["#ffe2b0", "#9bd8ff", "#ffffff", "#5b8cff", "#ffb38a"];
-  const LIFE = 1700;   // how long a stroke stays (ms)
+  const HUES = [205, 330, 28, 175];            // soft blue, rose, peach, aqua
+  const LIFE = 1500;                           // ms until a stroke has fully faded
   const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let strokes = [], cur = null, nextInk = 0, dpr = 1;
+  let strokes = [], cur = null, target = null, sm = null, n = 0, dpr = 1;
   function fit() { dpr = Math.min(window.devicePixelRatio || 1, 2); cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; }
   fit(); addEventListener("resize", fit);
-  function add(x, y) {
-    const now = performance.now();
-    if (!cur || now - cur.last > 140) {
-      cur = { pts: [], last: now, ink: INKS[nextInk++ % INKS.length],
-              hairs: Array.from({ length: 7 }, () => ({ o: Math.random() * 2 - 1, w: 0.6 + Math.random() * 1.6, a: 0.25 + Math.random() * 0.5 })) };
+  function add(x, y, now) {
+    if (!cur || now - cur.last > 160) {
+      cur = { pts: [], last: now, hue: HUES[n++ % HUES.length], hairs: Array.from({ length: 5 }, () => ({ o: Math.random() * 2 - 1, w: 0.5 + Math.random() * 1.1, a: 0.15 + Math.random() * 0.25 })) };
       strokes.push(cur);
     }
     const p = cur.pts[cur.pts.length - 1];
-    if (p && Math.hypot(x - p.x, y - p.y) < 4) return;
+    if (p && Math.hypot(x - p.x, y - p.y) < 3) return;
     cur.pts.push({ x, y, t: now }); cur.last = now;
   }
-  landing.addEventListener("pointermove", (e) => add(e.clientX, e.clientY));
-  landing.addEventListener("pointerleave", () => (cur = null));
+  if (!calm) {   // mouse and pen only: touch screens keep their normal scrolling and taps
+    landing.addEventListener("pointermove", (e) => { if (e.pointerType === "touch") return; target = { x: e.clientX, y: e.clientY }; if (!sm) sm = { ...target }; }, { passive: true });
+    landing.addEventListener("pointerleave", () => { target = null; sm = null; cur = null; });
+  }
   const t0 = performance.now(), SWEEP = 2400;
   function frame(now) {
     if (landing.hidden) return;
-    if (!calm && now - t0 < SWEEP) {            // one opening stroke so the page paints itself on load
-      const k = (now - t0) / SWEEP;
-      add(innerWidth * (0.08 + 0.84 * k), innerHeight * (0.52 + Math.sin(k * 7) * 0.13 - k * 0.04));
-    }
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, cv.width, cv.height);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    if (!calm && now - t0 < SWEEP) { const k = (now - t0) / SWEEP; add(innerWidth * (0.08 + 0.84 * k), innerHeight * (0.52 + Math.sin(k * 7) * 0.13 - k * 0.04), now); }
+    if (target && sm) { sm.x += (target.x - sm.x) * 0.35; sm.y += (target.y - sm.y) * 0.35; add(sm.x, sm.y, now); }   // eased, so the line is smooth
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.lineCap = "round"; ctx.lineJoin = "round";
     strokes = strokes.filter((s) => { s.pts = s.pts.filter((p) => now - p.t < LIFE); return s.pts.length > 0; });
     if (cur && !strokes.includes(cur)) cur = null;
     for (const s of strokes) {
-      ctx.strokeStyle = s.ink;
       for (let i = 1; i < s.pts.length; i++) {
-        const a = s.pts[i - 1], b = s.pts[i], f = 1 - (now - b.t) / LIFE;   // 1 = fresh paint, 0 = gone
-        const half = 16 * (0.3 + 0.7 * f);
-        const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
-        ctx.globalAlpha = 0.32 * f; ctx.lineWidth = half * 1.6;                 // wet body of the stroke
+        const a = s.pts[i - 1], b = s.pts[i], f = Math.pow(1 - (now - b.t) / LIFE, 1.4);   // 1 = fresh, 0 = gone
+        const half = 7 * (0.3 + 0.7 * f), dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
+        ctx.strokeStyle = `hsl(${(s.hue + i * 3) % 360}, 85%, 76%)`;
+        ctx.globalAlpha = 0.16 * f; ctx.lineWidth = half * 1.6;
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-        for (const h of s.hairs) {                                              // bristle streaks
+        for (const h of s.hairs) {
           ctx.globalAlpha = h.a * f; ctx.lineWidth = h.w;
           ctx.beginPath(); ctx.moveTo(a.x + nx * h.o * half, a.y + ny * h.o * half); ctx.lineTo(b.x + nx * h.o * half, b.y + ny * h.o * half); ctx.stroke();
         }
@@ -519,10 +539,10 @@ function showView(name) {
   $("tabDraw").classList.toggle("active", name === "draw");
   $("tabAlbum").classList.toggle("active", name === "album");
   if (name === "album") {
-    drawEnabled = false;
+    setDrawing(false);
     renderGallery();
   } else {
-    drawEnabled = $("finish").hidden; // keep paused if the "finish" part is open
+    setDrawing($("finish").hidden);   // stay paused while the preview is open
   }
   window.scrollTo({ top: 0 });
 }
@@ -565,15 +585,11 @@ function usedColorNames() {
   return names.slice(0, 4);
 }
 
-// ================= Done drawing =================
+// ================= Done drawing / Resume drawing =================
 $("doneBtn").onclick = async () => {
-  if (strokes.length === 0) {
-    statusEl.textContent = "Draw something first, then click Done drawing.";
-    return;
-  }
+  if (strokes.length === 0) { sideSay("Draw something first, then click Done drawing."); return; }
   const img = snapshot();
-  drawEnabled = false;
-  current = null;
+  setDrawing(false);   // from here on, hand gestures cannot create strokes
   $("doneImg").src = img;
   $("resultImg").hidden = true;
   $("addGalleryBtn").hidden = true;
@@ -581,44 +597,65 @@ $("doneBtn").onclick = async () => {
   $("genStatus").textContent = "";
   $("finish").hidden = false;
   currentFolder = { drawing: img, colors: usedColorNames() };
-
-  $("finish").scrollIntoView({ behavior: "smooth" });
+  try { await $("doneImg").decode(); } catch (e) { /* scroll anyway */ }
+  requestAnimationFrame(() => $("finish").scrollIntoView({ behavior: "smooth", block: "start" }));
 };
 
-$("downloadDrawing").onclick = () => download($("doneImg").src, "airbrush-drawing.png");
-
-$("backToDraw").onclick = () => {
+$("resumeBtn").onclick = () => {
+  if (drawEnabled) return;
   $("finish").hidden = true;
-  drawEnabled = true;
+  setDrawing(true);   // same canvas, tool, color and size as before
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
 
-// ================= Voice input (free, built into Chrome / Edge) =================
+// ================= Voice input (browser speech recognition: Chrome, Edge, Safari) =================
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognition = null;
-function setupMic(btnId, boxId) {
-  const btn = $(btnId);
+const MIC_ERRORS = {
+  "not-allowed": "Microphone access is blocked. Allow it in the browser's address bar, then try again.",
+  "service-not-allowed": "Microphone access is blocked. Allow it in the browser's address bar, then try again.",
+  "audio-capture": "No microphone was found. Connect one and try again.",
+  "no-speech": "No speech was heard. Click the microphone and try again.",
+  "network": "Voice input needs an internet connection.",
+  "language-not-supported": "This language isn't supported for voice input.",
+};
+let activeMic = null;   // only one microphone listens at a time
+function setupMic(btnId, boxId, msgId) {
+  const btn = $(btnId), box = $(boxId), say = (t) => ($(msgId).textContent = t);
+  btn.setAttribute("aria-pressed", "false");
   btn.onclick = () => {
-    if (!SR) {
-      $("genStatus").textContent = "Voice input works in Chrome or Edge. Please type instead.";
-      return;
-    }
-    if (recognition) { recognition.stop(); return; }
-    recognition = new SR();
-    recognition.lang = "en-US";
-    recognition.interimResults = false;
-    recognition.onresult = (e) => {
-      const text = e.results[0][0].transcript;
-      $(boxId).value = ($(boxId).value ? $(boxId).value + " " : "") + text;
+    if (activeMic && activeMic.btn === btn) { activeMic.rec.stop(); return; }   // click again = stop
+    if (!SR) { say("Voice input isn't supported in this browser. Use Chrome or Edge, or type instead."); return; }
+    if (activeMic) activeMic.rec.abort();                                        // the other field's mic stops first
+    const rec = new SR(), me = { btn, rec };
+    rec.lang = navigator.language || "en-US";
+    rec.continuous = true; rec.interimResults = true;
+    const base = box.value;          // what was already typed stays; speech is added after it
+    let spoken = "", failed = false;
+    const show = (interim) => {
+      const text = (spoken + " " + interim).trim();
+      box.value = base && text ? base + (/\s$/.test(base) ? "" : " ") + text : base + text;
     };
-    recognition.onerror = () => { $("genStatus").textContent = "Couldn't hear you. Check the microphone permission."; };
-    recognition.onend = () => { recognition = null; btn.classList.remove("active"); };
-    recognition.start();
-    btn.classList.add("active");
+    rec.onstart = () => { activeMic = me; btn.classList.add("active"); btn.setAttribute("aria-pressed", "true"); box.readOnly = true; say("Listening… speak now, click the microphone again to stop."); };
+    rec.onresult = (e) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript.trim();
+        if (e.results[i].isFinal) spoken = (spoken + " " + t).trim(); else interim += " " + t;
+      }
+      show(interim.trim());
+    };
+    rec.onerror = (e) => { failed = true; say(MIC_ERRORS[e.error] || "Voice input stopped (" + e.error + ").");  };
+    rec.onend = () => {
+      btn.classList.remove("active"); btn.setAttribute("aria-pressed", "false"); box.readOnly = false;
+      if (activeMic === me) activeMic = null;
+      show("");
+      if (!failed) say(spoken ? "Added. You can edit the text." : "No speech was heard. Click the microphone and try again.");
+    };
+    try { rec.start(); } catch (err) { say("Couldn't start voice input. Please try again."); }
   };
 }
-setupMic("micBtn", "desc");
-setupMic("micBtn2", "subject");
+setupMic("micBtn2", "subject", "subjectMsg");
+setupMic("micBtn", "desc", "descMsg");
 
 // ================= Generate image with Cloudflare Workers AI (free, fast) =================
 // Paste your Cloudflare Worker link below (see the setup steps). Ends with .workers.dev
