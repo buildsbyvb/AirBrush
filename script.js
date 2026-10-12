@@ -27,16 +27,16 @@ let lastResult = null;        // the image just generated (not in the gallery un
 
 // ---------- output styles ----------
 const STYLES = [
-  { id: "realistic",  label: "Realistic image",   prompt: "realistic photo, ultra detailed, natural lighting, sharp focus" },
-  { id: "bw",         label: "Black & white",      prompt: "black and white photograph, monochrome, high contrast, dramatic shading" },
-  { id: "watercolor", label: "Watercolour",        prompt: "watercolor painting, soft washes of colour, paper texture, delicate brushwork" },
-  { id: "oil",        label: "Oil painting",       prompt: "oil painting, thick brush strokes, rich colours, canvas texture, masterpiece" },
-  { id: "pencil",     label: "Pencil sketch",      prompt: "detailed pencil sketch, graphite shading, hand drawn on paper" },
-  { id: "cartoon",    label: "Cartoon",            prompt: "cartoon illustration, bold outlines, bright flat colours, cute" },
-  { id: "anime",      label: "Anime",              prompt: "anime style illustration, vibrant colours, clean lines, studio quality" },
-  { id: "pixel",      label: "Pixel art",          prompt: "pixel art, 16-bit retro game style, limited colour palette" },
-  { id: "3d",         label: "3D render",          prompt: "3D render, soft studio lighting, smooth materials, octane render" },
-  { id: "comic",      label: "Comic book",         prompt: "comic book art, ink outlines, halftone dots, dynamic colours" },
+  { id: "realistic",  label: "Realistic image",   prompt: "a photorealistic photograph with real materials, natural lighting, soft realistic shadows, depth and sharp focus" },
+  { id: "bw",         label: "Black & white",      prompt: "a black and white photograph in the monochrome style of mid-century photography: the drawn colours converted to matching grey tones, realistic tonal shading, texture and fine film grain" },
+  { id: "watercolor", label: "Watercolour",        prompt: "a watercolor painting with soft washes of colour, paper texture and delicate brushwork" },
+  { id: "oil",        label: "Oil painting",       prompt: "an oil painting with visible brush strokes, rich colours and canvas texture" },
+  { id: "pencil",     label: "Pencil sketch",      prompt: "a detailed pencil sketch with graphite shading, hand drawn on paper" },
+  { id: "cartoon",    label: "Cartoon",            prompt: "a cartoon illustration with bold outlines and flat colours" },
+  { id: "anime",      label: "Anime",              prompt: "an anime style illustration with clean lines and vibrant colours" },
+  { id: "pixel",      label: "Pixel art",          prompt: "pixel art in a 16-bit retro game style with a limited colour palette" },
+  { id: "3d",         label: "3D render",          prompt: "a 3D render with soft studio lighting and smooth materials" },
+  { id: "comic",      label: "Comic book",         prompt: "comic book art with ink outlines, halftone dots and dynamic colours" },
 ];
 let selectedStyle = "realistic";
 
@@ -252,13 +252,21 @@ function getGesture(lm) {
   return "none";
 }
 
-// ---------- hand skeleton overlay: coloured bones drawn over your hand ----------
+// ---------- hand skeleton overlay: one visible point for every landmark the model returns ----------
+// MediaPipe Hands returns 21 landmarks per hand (0 wrist, 1-4 thumb, 5-8 index, 9-12 middle, 13-16 ring, 17-20 pinky).
+// The point count below always follows the model's actual output (lm.length).
 const handCanvas = $("handCanvas"), handCtx = handCanvas.getContext("2d");
 const MODE_TEXT = { draw: "Drawing", erase: "Erasing", palm: "Paused", none: "Ready" };
-const BONE_COL = { carpal: "#c9a7ef", meta: "#ecc76a", prox: "#b5d98a", mid: "#8fb8e8", dist: "#f4a583" };
-const BONE_W = { meta: 13, prox: 11, mid: 9.5, dist: 8.5 };
-const OUTLINE = "#2b2a3a";
-const lerp = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+const HAND_LINES = [
+  [0, 1], [1, 2], [2, 3], [3, 4],            // thumb
+  [0, 5], [5, 6], [6, 7], [7, 8],            // index
+  [5, 9], [9, 10], [10, 11], [11, 12],       // middle
+  [9, 13], [13, 14], [14, 15], [15, 16],     // ring
+  [13, 17], [17, 18], [18, 19], [19, 20],    // pinky
+  [0, 17],                                   // outer edge of the palm
+];
+const FINGERTIPS = new Set([4, 8, 12, 16, 20]);
+const SKEL = { bone: "#fff8ea", halo: "rgba(23, 20, 18, 0.9)", joint: "#fff8ea", ring: "#244a77", tip: "#e8704a" };
 
 function clearHand() { handCtx.clearRect(0, 0, W, H); }
 
@@ -275,39 +283,24 @@ function toCanvas(p) {
 function drawHand(lm) {
   const c = handCtx;
   c.clearRect(0, 0, W, H);
-  const P = lm.map(toCanvas);   // same mirror and crop as the video
-  const s = Math.min(1.5, Math.max(0.55, Math.hypot(P[0].x - P[9].x, P[0].y - P[9].y) / 115));   // bone size follows hand size
+  const P = lm.map(toCanvas);   // same mirror and crop as the video, one point per landmark
+  const hand = P.length > 9 ? Math.hypot(P[0].x - P[9].x, P[0].y - P[9].y) : 100;
+  const s = Math.min(1.3, Math.max(0.75, hand / 115));   // sizes follow hand size, kept modest
   c.save();
-  c.lineCap = "round"; c.lineJoin = "round";
-
-  // wrist bones (purple)
-  const wrist = [lerp(P[0], P[1], 0.75), lerp(P[0], P[5], 0.5), lerp(P[0], P[9], 0.45), lerp(P[0], P[13], 0.45), lerp(P[0], P[17], 0.5), lerp(P[0], P[17], 0.85), P[0]];
-  c.beginPath(); wrist.forEach((p, i) => (i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y))); c.closePath();
-  c.strokeStyle = OUTLINE; c.lineWidth = 10 * s + 3; c.stroke();
-  c.strokeStyle = BONE_COL.carpal; c.fillStyle = BONE_COL.carpal; c.lineWidth = 10 * s; c.stroke(); c.fill();
-
-  // one bone = a shaft with rounded knobs at both ends, dark outline, small highlight
-  function bone(a, b, kind) {
-    const w = BONE_W[kind] * s, r = w * 0.62;
-    const d = Math.hypot(b.x - a.x, b.y - a.y) || 1, ux = (b.x - a.x) / d, uy = (b.y - a.y) / d;
-    const inset = Math.min(r * 0.85, d * 0.3);
-    const a2 = { x: a.x + ux * inset, y: a.y + uy * inset }, b2 = { x: b.x - ux * inset, y: b.y - uy * inset };
-    for (const pass of [0, 1]) {
-      const extra = pass ? 0 : 3;
-      c.strokeStyle = c.fillStyle = pass ? BONE_COL[kind] : OUTLINE;
-      c.lineWidth = w * 0.78 + extra;
-      c.beginPath(); c.moveTo(a2.x, a2.y); c.lineTo(b2.x, b2.y); c.stroke();
-      [a2, b2].forEach((p) => { c.beginPath(); c.arc(p.x, p.y, r + extra / 2, 0, Math.PI * 2); c.fill(); });
-    }
-    c.strokeStyle = "rgba(255, 255, 255, 0.35)"; c.lineWidth = w * 0.16;
-    c.beginPath(); c.moveTo(a2.x - uy * w * 0.2, a2.y + ux * w * 0.2); c.lineTo(b2.x - uy * w * 0.2, b2.y + ux * w * 0.2); c.stroke();
-  }
-
-  bone(P[1], P[2], "meta");                                             // thumb: base bone
-  [5, 9, 13, 17].forEach((m) => bone(lerp(P[0], P[m], 0.42), P[m], "meta"));   // palm bones (yellow)
-  [[5, 6], [9, 10], [13, 14], [17, 18], [2, 3]].forEach(([a, b]) => bone(P[a], P[b], "prox"));   // green
-  [[6, 7], [10, 11], [14, 15], [18, 19]].forEach(([a, b]) => bone(P[a], P[b], "mid"));           // blue
-  [[7, 8], [11, 12], [15, 16], [19, 20], [3, 4]].forEach(([a, b]) => bone(P[a], P[b], "dist"));  // orange (fingertips)
+  c.lineCap = "round"; c.lineJoin = "round"; c.globalAlpha = 1;
+  const lines = HAND_LINES.filter(([a, b]) => P[a] && P[b]);
+  // dark halo first so the thin ivory lines stay readable on any background
+  c.strokeStyle = SKEL.halo; c.lineWidth = 4.6 * s;
+  c.beginPath(); lines.forEach(([a, b]) => { c.moveTo(P[a].x, P[a].y); c.lineTo(P[b].x, P[b].y); }); c.stroke();
+  c.strokeStyle = SKEL.bone; c.lineWidth = 2.2 * s;
+  c.beginPath(); lines.forEach(([a, b]) => { c.moveTo(P[a].x, P[a].y); c.lineTo(P[b].x, P[b].y); }); c.stroke();
+  // landmark points
+  P.forEach((p, i) => {
+    const tip = FINGERTIPS.has(i), r = (tip ? 5.2 : 4) * s;
+    c.beginPath(); c.arc(p.x, p.y, r + 1.6, 0, Math.PI * 2); c.fillStyle = SKEL.halo; c.fill();
+    c.beginPath(); c.arc(p.x, p.y, r, 0, Math.PI * 2); c.fillStyle = tip ? SKEL.tip : SKEL.joint; c.fill();
+    c.lineWidth = 1.6; c.strokeStyle = SKEL.ring; c.stroke();
+  });
   c.restore();
 }
 
@@ -428,7 +421,7 @@ async function startApp() {
     return;
   }
 
-  console.log("AirBrush v8 loaded");
+  console.log("AirBrush v9 loaded");
   statusEl.textContent = "Loading hand tracking (first time takes a few seconds)…";
   const hands = new Hands({
     locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}`,
@@ -456,15 +449,15 @@ async function startApp() {
 // ---------- front page: light paint strokes that follow the mouse and fade away ----------
 (function () {
   const cv = $("fx"), ctx = cv.getContext("2d"), landing = $("landing");
-  const HUES = [205, 330, 28, 175];            // soft blue, rose, peach, aqua
-  const LIFE = 1500;                           // ms until a stroke has fully faded
+  const HUES = [212, 18, 38, 200];             // ink blue, terracotta, ochre, slate: a restrained painter's palette
+  const LIFE = 1700;                           // ms until a stroke has fully faded
   const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let strokes = [], cur = null, target = null, sm = null, n = 0, dpr = 1;
   function fit() { dpr = Math.min(window.devicePixelRatio || 1, 2); cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; }
   fit(); addEventListener("resize", fit);
   function add(x, y, now) {
     if (!cur || now - cur.last > 160) {
-      cur = { pts: [], last: now, hue: HUES[n++ % HUES.length], hairs: Array.from({ length: 5 }, () => ({ o: Math.random() * 2 - 1, w: 0.5 + Math.random() * 1.1, a: 0.15 + Math.random() * 0.25 })) };
+      cur = { pts: [], last: now, hue: HUES[n++ % HUES.length], hairs: Array.from({ length: 3 }, () => ({ o: Math.random() * 2 - 1, w: 0.4 + Math.random() * 0.6, a: 0.12 + Math.random() * 0.16 })) };
       strokes.push(cur);
     }
     const p = cur.pts[cur.pts.length - 1];
@@ -487,9 +480,9 @@ async function startApp() {
     for (const s of strokes) {
       for (let i = 1; i < s.pts.length; i++) {
         const a = s.pts[i - 1], b = s.pts[i], f = Math.pow(1 - (now - b.t) / LIFE, 1.4);   // 1 = fresh, 0 = gone
-        const half = 7 * (0.3 + 0.7 * f), dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
-        ctx.strokeStyle = `hsl(${(s.hue + i * 3) % 360}, 85%, 76%)`;
-        ctx.globalAlpha = 0.16 * f; ctx.lineWidth = half * 1.6;
+        const half = 4.5 * (0.3 + 0.7 * f), dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
+        ctx.strokeStyle = `hsl(${(s.hue + i * 0.6) % 360}, 42%, 38%)`;
+        ctx.globalAlpha = 0.09 * f; ctx.lineWidth = half * 1.4;
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
         for (const h of s.hairs) {
           ctx.globalAlpha = h.a * f; ctx.lineWidth = h.w;
@@ -585,6 +578,54 @@ function usedColorNames() {
   return names.slice(0, 4);
 }
 
+// ---------- measure the drawing itself, so the AI is told what was really drawn (not what is usual) ----------
+// Works on the pixels of the canvas: which colours are where, how big, and whether a colour forms stacked
+// sections of clearly different width (for example the tiers of a cake). Only confident findings are reported.
+function analyzeStructure() {
+  const gw = 160, gh = 120;
+  const c = document.createElement("canvas"); c.width = gw; c.height = gh;
+  const x = c.getContext("2d", { willReadFrequently: true });
+  x.drawImage(paintCanvas, 0, 0, gw, gh);
+  const d = x.getImageData(0, 0, gw, gh).data;
+  const groups = {}, cache = {};
+  let total = 0;
+  for (let y = 0; y < gh; y++) {
+    for (let xx = 0; xx < gw; xx++) {
+      const i = (y * gw + xx) * 4;
+      if (d[i + 3] < 110) continue;
+      const hex = rgb2hex(d[i], d[i + 1], d[i + 2]);
+      const name = cache[hex] || (cache[hex] = nearestColorName(hex));
+      const g = groups[name] || (groups[name] = { name, n: 0, x0: gw, x1: -1, y0: gh, y1: -1, rows: {} });
+      g.n++; total++;
+      g.x0 = Math.min(g.x0, xx); g.x1 = Math.max(g.x1, xx); g.y0 = Math.min(g.y0, y); g.y1 = Math.max(g.y1, y);
+      const r = g.rows[y] || (g.rows[y] = [xx, xx]);
+      r[0] = Math.min(r[0], xx); r[1] = Math.max(r[1], xx);
+    }
+  }
+  if (!total) return { text: "", parts: [] };
+  const parts = Object.values(groups).filter((g) => g.n >= Math.max(10, total * 0.02));
+  const pct = (v, m) => Math.round((v / m) * 100);
+  const out = parts.map((g) => {
+    // row-by-row width; a sudden jump in width between neighbouring rows marks a new stacked section
+    const ext = [];
+    for (let y = g.y0; y <= g.y1; y++) if (g.rows[y]) ext.push(g.rows[y][1] - g.rows[y][0] + 1);
+    const segs = []; let cur = [ext[0]];
+    for (let i = 1; i < ext.length; i++) {
+      const jump = Math.abs(ext[i] - ext[i - 1]) >= Math.max(10, 0.25 * Math.max(ext[i], ext[i - 1]));
+      if (jump && cur.length >= 5) { segs.push(cur); cur = [ext[i]]; } else cur.push(ext[i]);
+    }
+    segs.push(cur);
+    const real = segs.filter((q) => q.length >= 5);
+    const widths = real.map((q) => pct(q.slice().sort((a, b) => a - b)[Math.floor(q.length / 2)], gw));
+    return { name: g.name, cx: (g.x0 + g.x1) / 2, cy: (g.y0 + g.y1) / 2, x0: pct(g.x0, gw), x1: pct(g.x1 + 1, gw), y0: pct(g.y0, gh), y1: pct(g.y1 + 1, gh), sections: real.length >= 2 ? real.length : 0, widths };
+  }).sort((a, b) => a.cy - b.cy);
+  const lines = out.map((p) =>
+    `the ${p.name} part spans ${p.x0}% to ${p.x1}% across and ${p.y0}% to ${p.y1}% down the picture` +
+    (p.sections ? `, and it is made of exactly ${p.sections} stacked sections (top to bottom their widths are about ${p.widths.join("%, ")}% of the picture width): keep exactly ${p.sections} stacked sections, no more and no fewer` : ""));
+  const text = out.length ? "Measured layout of the sketch, from top to bottom: " + lines.join("; ") + ". " : "";
+  return { text, parts: out };
+}
+
 // ================= Done drawing / Resume drawing =================
 $("doneBtn").onclick = async () => {
   if (strokes.length === 0) { sideSay("Draw something first, then click Done drawing."); return; }
@@ -596,7 +637,10 @@ $("doneBtn").onclick = async () => {
   lastResult = null;
   $("genStatus").textContent = "";
   $("finish").hidden = false;
-  currentFolder = { drawing: img, colors: usedColorNames() };
+  let structure = { text: "", parts: [] };
+  try { structure = analyzeStructure(); } catch (err) { console.warn("structure analysis skipped", err); }
+  // the original drawing is stored here and never modified: every generation reads it, none writes to it
+  currentFolder = Object.freeze({ drawing: img, colors: usedColorNames(), structure: structure.text });
   try { await $("doneImg").decode(); } catch (e) { /* scroll anyway */ }
   requestAnimationFrame(() => $("finish").scrollIntoView({ behavior: "smooth", block: "start" }));
 };
@@ -734,16 +778,19 @@ async function pickModel() {
   return "stable_diffusion";
 }
 
-async function generateWithHorde(sketchDataUrl, prompt, onStatus) {
+async function generateWithHorde(sketchDataUrl, prompt, negative, styleId, onStatus) {
   const source = await sketchToBase64(sketchDataUrl);
   const model = await pickModel();
 
+  // Structure control: the sketch is also given to a ControlNet ("scribble") so the lines of the drawing guide the geometry.
+  // A lower denoising value keeps the result closer to the drawing; the lines carry the shape, the prompt carries the rendering.
   const body = {
-    prompt: prompt + " ### text, watermark, signature, blurry, deformed, low quality",
+    prompt: prompt + " ### " + negative,
     params: {
       sampler_name: "k_euler_a",
       cfg_scale: 7.5,
-      denoising_strength: 0.65,   // lower = stays closer to your drawing, higher = more AI freedom
+      denoising_strength: styleId === "realistic" || styleId === "bw" ? 0.6 : 0.5,
+      control_type: "scribble",
       width: 512,
       height: 384,
       steps: 28,
@@ -760,11 +807,13 @@ async function generateWithHorde(sketchDataUrl, prompt, onStatus) {
     slow_workers: true,
   };
 
-  const start = await fetch(`${HORDE}/generate/async`, {
+  const post = () => fetch(`${HORDE}/generate/async`, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: HORDE_KEY },
     body: JSON.stringify(body),
   });
+  let start = await post();
+  if (!start.ok) { delete body.params.control_type; start = await post(); }   // structure control unavailable: still use img2img
   const startJson = await start.json().catch(() => ({}));
   if (!start.ok || !startJson.id) {
     throw new Error(startJson.message || `The free AI service refused the request (${start.status}).`);
@@ -794,50 +843,40 @@ async function generateWithHorde(sketchDataUrl, prompt, onStatus) {
 $("genBtn").onclick = async () => {
   if (!currentFolder) return;
   const style = STYLES.find((s) => s.id === selectedStyle);
-  const subject = $("subject").value.trim();   // what the drawing is (e.g. "a tree")
-  const desc = $("desc").value.trim();          // what to add (e.g. "a blue apple on the tree")
-  // When there is no description, avoid style words that make the AI invent a scene (like "photo").
-  const NO_SCENE_STYLE = {
-    realistic: "photorealistic rendering of the drawn object only, soft even studio lighting, sharp focus, highly detailed",
-    bw: "black and white, monochrome, high contrast, dramatic shading",
-  };
-  const stylePrompt = desc ? style.prompt : (NO_SCENE_STYLE[style.id] || style.prompt);
-
+  const subject = $("subject").value.trim();   // what the drawing IS (e.g. "cake")
+  const desc = $("desc").value.trim();          // optional extras for the scene (e.g. "add balloons")
   const colors = (currentFolder.colors || []).join(", ");
-  const subjectLine = subject ? `The sketch shows ${subject}. ` : "";
-  const colorLine = colors
-    ? `The sketch uses these colours: ${colors}. Keep exactly these colours on the matching parts (for example a pink tree must stay pink). `
-    : "Keep the colours of the sketch. ";
-  const keepDrawing =
-    "Image 0 is a hand-drawn sketch and it is the main subject. " + subjectLine + colorLine +
-    "The drawn subject must keep EXACTLY the same shape, proportions, position and size as drawn. " +
-    "Do not redesign it, replace it, move it, or swap it for a different generic version of the same thing. ";
-  const realism = (style.id === "realistic" || style.id === "bw")
-    ? "Make it look a little more realistic: add natural texture, soft shading and gentle lighting, while keeping the shape and the colours of the drawing. "
-    : "";
+  const structure = currentFolder.structure || "";
+  const photo = style.id === "realistic";
+
+  // Priority order: 1 the drawing, 2 the description, 3 the style, 4 additional instructions, 5 creative detail.
+  const drawingRules =
+    "Image 0 is a hand-drawn sketch and it is the single source of truth for the design of the main subject. " +
+    (subject ? `The description "${subject}" only tells you what the drawing represents; it is NOT permission to redesign it or to draw a typical ${subject} from scratch. ` : "") +
+    structure +
+    (colors ? `The sketch uses these colours: ${colors}. Keep these colours on the matching parts. ` : "Keep the colours of the sketch. ") +
+    "Keep EXACTLY the same silhouette, proportions, height and width, number of objects, number of parts (tiers, layers, limbs, wheels, petals, windows and similar), decorations, positions and arrangement as drawn. " +
+    "Never add a part, never remove a part, and never swap the drawing for the usual version of that object: if the drawing is unusual or imperfect, keep it that way. " +
+    "Only the rendering may change (materials, lighting, shadows, texture, depth), never the geometry. ";
+
+  const styleLine = `Render the drawn subject as ${style.prompt}. `;
+  const sceneLine = photo
+    ? "Place it in a tasteful, fitting real-world setting that suits what it is" + (subject ? ` (${subject})` : "") + ", with a realistic background and gentle depth of field. The drawn subject stays the clear main subject, in the same position and relative size. "
+    : (style.id === "bw"
+        ? "Use a simple neutral background so the subject stays the clear main subject. "
+        : "Keep the background simple and plain, as in the sketch, so the subject stays the clear main subject. ");
   const addLine = desc
-    ? `Add the following to the same picture, together with the drawn subject, without changing the subject itself: ${desc}. ` +
-      "If a colour is stated for an added item, use exactly that colour (a blue apple must be blue). " +
-      "If no colour is stated, use that item's natural colour (an apple is red). " +
-      "Attach the added items naturally to the drawn subject with matching lighting, scale and shadows. "
+    ? `Additional instructions for the surrounding scene only: ${desc}. Add these around or next to the drawn subject without changing the subject itself. ` +
+      "If an instruction would change a defining feature of the drawing (its shape, size or number of parts), ignore that part and apply it in a way that keeps the drawing unchanged. " +
+      "If a colour is stated for an added item, use exactly that colour; otherwise use the item's natural colour. Match lighting, scale and shadows. "
     : "";
 
-  const aiPrompt = desc
-    ? "Edit image 0. " + keepDrawing +
-      `Render the drawn subject in this style: ${stylePrompt}. ` + realism + addLine +
-      "Never create a new picture from the description alone: the drawn subject must clearly be the one from image 0. " +
-      "Do not add any text or watermark."
-    : "Edit image 0. " + keepDrawing +
-      `Only change how the drawn subject is rendered, in this style: ${stylePrompt}. ` + realism +
-      "IMPORTANT: keep the background of image 0 exactly as it is: a pure, plain, empty white background filling the whole picture, like a blank white painting canvas. " +
-      "There must be NO scenery, NO beach, NO sky, NO room, NO table or surface, NO hands, NO people, NO other objects and NO background details of any kind. " +
-      "Only the drawn subject, alone, on plain white. " +
-      "Do not add any text or watermark.";
+  const aiPrompt = "Edit image 0. " + drawingRules + styleLine + sceneLine + addLine +
+    "Never create a new picture from the text alone: the main subject must clearly be the exact design drawn in image 0. Do not add any text or watermark.";
 
-  const hordeBase = `${stylePrompt}, ${subject ? subject + ", " : ""}the same drawn subject as in the sketch, same shapes, position and colours${colors ? " (" + colors + ")" : ""}`;
-  const hordePrompt = desc
-    ? `${hordeBase}, with ${desc}, high quality`
-    : `${hordeBase}, isolated on a plain pure white background, nothing else, high quality`;
+  const hordePrompt = `${style.prompt}, ${subject ? subject + ", " : ""}exactly the same drawn subject as the sketch, same silhouette, same number of parts, same proportions, same position, same colours${colors ? " (" + colors + ")" : ""}` +
+    (photo ? ", fitting realistic environment" : ", plain simple background") + (desc ? `, scene extras: ${desc}` : "") + ", high quality";
+  const hordeNegative = "extra tiers, extra parts, missing parts, different design, redesigned subject, changed proportions, text, watermark, blurry, deformed, low quality";
 
   const btn = $("genBtn");
   btn.disabled = true;
@@ -859,7 +898,7 @@ $("genBtn").onclick = async () => {
     } catch (fastErr) {
       console.warn("Fast service failed, using free backup:", fastErr);
       hint = "(fast service unavailable, using the free backup: 30 seconds to 3 minutes, keep this tab open)";
-      image = await generateWithHorde(currentFolder.drawing, hordePrompt, (c) => {
+      image = await generateWithHorde(currentFolder.drawing, hordePrompt, hordeNegative, style.id, (c) => {
         queueInfo = c.queue_position > 0 ? `· waiting in line: ${c.queue_position} ahead of you ` : "· drawing now ";
       });
     }
