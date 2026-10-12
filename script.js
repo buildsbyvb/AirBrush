@@ -12,7 +12,7 @@ const statusEl = $("status");
 
 // ---------- state ----------
 let color = "#ff0000";
-let size = 8;
+let size = 4;
 let tool = "pen";
 let strokes = [];
 let current = null;
@@ -20,10 +20,10 @@ let lastPoint = null;
 let stableGesture = "none";
 let gestureCount = 0;
 let started = false;
-let drawEnabled = true;       // false after "Done drawing" or inside Album
+let drawEnabled = true;       // false after "Done drawing" or inside the gallery
 let currentView = "draw";
 let currentFolder = null;     // album folder of the drawing being finished
-let openFolderId = null;
+let lastResult = null;        // the image just generated (not in the gallery until "Add to gallery")
 
 // ---------- output styles ----------
 const STYLES = [
@@ -54,29 +54,20 @@ STYLES.forEach((s) => {
 });
 
 // ---------- colour swatches ----------
-const COLOR_GROUPS = [
-  { name: "Neutral",   colors: ["#000000", "#555555", "#9a9a9a", "#ffffff"] },
-  { name: "Primary",   colors: ["#ff0000", "#ffe600", "#0047ff"] },
-  { name: "Secondary", colors: ["#ff8000", "#1faa3c", "#8a2be2"] },
-  { name: "More",      colors: ["#ffb300", "#ff4500", "#9acd32", "#00a693", "#00d4ff", "#7ec8ff", "#001f7a", "#ff7eb6",
-                               "#ff00ff", "#c3a6ff", "#98f5c3", "#ffcba4", "#d4a017", "#7b4a1e", "#800000", "#808000"] },
+const COLORS = [
+  "#000000", "#555555", "#9a9a9a", "#ffffff", "#ff0000", "#ffe600", "#0047ff", "#ff8000", "#1faa3c", "#8a2be2",
+  "#ffb300", "#ff4500", "#9acd32", "#00a693", "#00d4ff", "#7ec8ff", "#001f7a", "#ff7eb6",
+  "#ff00ff", "#c3a6ff", "#98f5c3", "#ffcba4", "#d4a017", "#7b4a1e", "#800000", "#808000",
 ];
-const COLORS = COLOR_GROUPS.flatMap((g) => g.colors);
 const swatchBox = $("swatches");
-COLOR_GROUPS.forEach((g) => {
-  const grp = document.createElement("div");
-  grp.className = "sw-group";
-  grp.innerHTML = `<div class="sw-name">${g.name}</div><div class="sw-row"></div>`;
-  g.colors.forEach((c) => {
-    const d = document.createElement("div");
-    d.className = "swatch" + (c === color ? " active" : "");
-    d.style.background = c;
-    d.dataset.color = c;
-    d.title = c;
-    d.onclick = () => setColor(c);
-    grp.querySelector(".sw-row").appendChild(d);
-  });
-  swatchBox.appendChild(grp);
+COLORS.forEach((c) => {
+  const d = document.createElement("div");
+  d.className = "swatch" + (c === color ? " active" : "");
+  d.style.background = c;
+  d.dataset.color = c;
+  d.title = c;
+  d.onclick = () => setColor(c);
+  swatchBox.appendChild(d);
 });
 function setColor(c, fromWheel) {
   color = c.toLowerCase();
@@ -178,7 +169,7 @@ $("clearBtn").onclick = () => { current = null; strokes = []; redraw(); };
 function segment(ctx, s, a, b) {
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  ctx.lineWidth = s.erase ? s.size * 2.5 : s.size;
+  ctx.lineWidth = s.size * (s.erase ? 5 : 2);   // size 1-10 on the slider
   if (s.erase) {
     ctx.globalCompositeOperation = "destination-out";
     ctx.strokeStyle = "rgba(0,0,0,1)";
@@ -236,24 +227,14 @@ function getGesture(lm) {
   return "none";
 }
 
-// ---------- hand skeleton overlay: neon "AI scan" of the hand, dots and lines only ----------
+// ---------- hand skeleton overlay (plain lines and dots on top of the webcam picture) ----------
 const handCanvas = $("handCanvas"), handCtx = handCanvas.getContext("2d");
-const FINGERS = [
-  { ids: [1, 2, 3, 4],     c: "#ff5fd2" },   // thumb
-  { ids: [5, 6, 7, 8],     c: "#22e1ff" },   // index
-  { ids: [9, 10, 11, 12],  c: "#7c8cff" },   // middle
-  { ids: [13, 14, 15, 16], c: "#b57bff" },   // ring
-  { ids: [17, 18, 19, 20], c: "#ff8ac9" },   // pinky
-];
-const JOINT_COLOR = Array(21).fill("#ffffff");
-FINGERS.forEach((f) => f.ids.forEach((i) => (JOINT_COLOR[i] = f.c)));
-const PALM_RING = [0, 1, 5, 9, 13, 17];
-const PALM_WEB = [[0, 5], [0, 9], [0, 13], [5, 13], [9, 17], [1, 5]];
+const BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
+               [9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
 const TIPS = [4, 8, 12, 16, 20];
-const trails = TIPS.map(() => []);
 const MODE_TEXT = { draw: "Drawing", erase: "Erasing", palm: "Paused", none: "Ready" };
 
-function clearHand() { handCtx.clearRect(0, 0, W, H); trails.forEach((t) => (t.length = 0)); }
+function clearHand() { handCtx.clearRect(0, 0, W, H); }
 
 // Turn a hand point (0..1 of the camera picture) into canvas pixels, exactly where it appears on the
 // webcam box. The video is mirrored and cropped to fill the box, so we must undo the same crop here.
@@ -265,73 +246,25 @@ function toCanvas(p) {
   return { x: W - x, y };
 }
 
-function drawHand(lm, g) {
-  const c = handCtx, now = performance.now();
+function drawHand(lm) {
+  const c = handCtx;
   c.clearRect(0, 0, W, H);
   const P = lm.map(toCanvas);   // same mirror and crop as the video
   c.save();
   c.lineCap = "round"; c.lineJoin = "round";
 
-  // 1. translucent palm surface + faint web lines
+  // bones: a dark line underneath so they show on any background, then a white line
   c.beginPath();
-  PALM_RING.forEach((i, k) => (k ? c.lineTo(P[i].x, P[i].y) : c.moveTo(P[i].x, P[i].y)));
-  c.closePath();
-  c.fillStyle = "rgba(139, 92, 246, 0.16)"; c.fill();
-  c.strokeStyle = "rgba(200, 190, 255, 0.45)"; c.lineWidth = 1.2; c.stroke();
-  c.beginPath();
-  PALM_WEB.forEach(([a, b]) => { c.moveTo(P[a].x, P[a].y); c.lineTo(P[b].x, P[b].y); });
-  c.strokeStyle = "rgba(200, 190, 255, 0.22)"; c.lineWidth = 1; c.stroke();
+  BONES.forEach(([a, b]) => { c.moveTo(P[a].x, P[a].y); c.lineTo(P[b].x, P[b].y); });
+  c.strokeStyle = "rgba(0, 0, 0, 0.55)"; c.lineWidth = 6; c.stroke();
+  c.strokeStyle = "#ffffff"; c.lineWidth = 3; c.stroke();
 
-  // 2. comet trails behind each fingertip
-  TIPS.forEach((tip, k) => {
-    const tr = trails[k];
-    tr.push({ x: P[tip].x, y: P[tip].y });
-    if (tr.length > 10) tr.shift();
-    const col = JOINT_COLOR[tip];
-    for (let i = 1; i < tr.length; i++) {
-      const f = i / tr.length;
-      c.globalAlpha = f * 0.6; c.strokeStyle = col; c.lineWidth = 1 + f * 5;
-      c.beginPath(); c.moveTo(tr[i - 1].x, tr[i - 1].y); c.lineTo(tr[i].x, tr[i].y); c.stroke();
-    }
-  });
-  c.globalAlpha = 1;
-
-  // 3. glowing finger bones, then a bright white core line on top
-  FINGERS.forEach((f) => {
-    c.beginPath();
-    c.moveTo(P[f.ids[0]].x, P[f.ids[0]].y);
-    f.ids.forEach((i) => c.lineTo(P[i].x, P[i].y));
-    c.shadowColor = f.c; c.shadowBlur = 18; c.strokeStyle = f.c; c.lineWidth = 5; c.stroke();
-    c.shadowBlur = 0; c.strokeStyle = "rgba(255, 255, 255, 0.9)"; c.lineWidth = 1.6; c.stroke();
-  });
-
-  // 4. joint dots: soft halo + white core + coloured ring
+  // joints: plain dots (fingertips are a little bigger)
   P.forEach((p, i) => {
-    const tip = TIPS.includes(i), col = JOINT_COLOR[i];
-    c.beginPath(); c.arc(p.x, p.y, tip ? 12 : 8.5, 0, Math.PI * 2);
-    c.fillStyle = col; c.globalAlpha = 0.22; c.fill(); c.globalAlpha = 1;
-    c.beginPath(); c.arc(p.x, p.y, tip ? 5.5 : 3.8, 0, Math.PI * 2);
-    c.shadowColor = col; c.shadowBlur = 12;
-    c.fillStyle = "#fff"; c.fill();
-    c.shadowBlur = 0; c.lineWidth = 2; c.strokeStyle = col; c.stroke();
+    c.beginPath(); c.arc(p.x, p.y, TIPS.includes(i) ? 6.5 : 4.5, 0, Math.PI * 2);
+    c.fillStyle = "#8b5cf6"; c.fill();
+    c.lineWidth = 2; c.strokeStyle = "#ffffff"; c.stroke();
   });
-
-  // 5. fingertips pulse like radar pings
-  TIPS.forEach((tip, k) => {
-    const r = 15 + 5 * Math.sin(now / 230 + k * 1.3);
-    c.globalAlpha = 0.55; c.lineWidth = 1.5; c.strokeStyle = JOINT_COLOR[tip];
-    c.beginPath(); c.arc(P[tip].x, P[tip].y, r, 0, Math.PI * 2); c.stroke();
-  });
-  c.globalAlpha = 1;
-
-  // 6. spinning dashed ring on the point that is drawing or erasing
-  if (g === "draw" || g === "erase") {
-    const t = g === "erase" ? { x: (P[8].x + P[12].x) / 2, y: (P[8].y + P[12].y) / 2 } : P[8];
-    c.setLineDash([4, 7]); c.lineDashOffset = -now / 35;
-    c.lineWidth = 2; c.strokeStyle = g === "erase" ? "#ff5f7a" : "#ffffff";
-    c.beginPath(); c.arc(t.x, t.y, 27, 0, Math.PI * 2); c.stroke();
-    c.setLineDash([]);
-  }
   c.restore();
 }
 
@@ -354,6 +287,14 @@ const SETTLE_MS = 320;   // after an open palm, wait this long before drawing st
 let pointerExitTime = 0;
 
 function onResults(results) {
+  // Locked (after "Done drawing" or inside the gallery): ignore the hand completely, even if it is raised.
+  if (!drawEnabled) {
+    current = null; lastPoint = null; stableGesture = "none"; gestureCount = 0;
+    pointerExitTime = performance.now();   // when drawing resumes, wait a moment before the first mark
+    showCursor(null); clearHand(); setMode("Locked");
+    if (currentView === "draw") statusEl.textContent = "Drawing is locked. Click Back to drawing to continue.";
+    return;
+  }
   const hands = results.multiHandLandmarks;
   if (!hands || hands.length === 0) {
     current = null; lastPoint = null; showCursor(null); clearHand(); setMode("No hand");
@@ -365,10 +306,7 @@ function onResults(results) {
   if (raw === stableGesture) { gestureCount = 0; }
   else if (++gestureCount >= 3) { stableGesture = raw; gestureCount = 0; current = null; }
   const g = stableGesture;
-  try { drawHand(lm, g); } catch (e) { console.error("skeleton error", e); }
-
-  // drawing is paused while the "Done drawing" panel or the Album is open
-  if (!drawEnabled) { current = null; lastPoint = null; showCursor(null); setMode("Idle"); return; }
+  try { drawHand(lm); } catch (e) { console.error("skeleton error", e); }
 
   const now = performance.now();
   let fx = lm[8].x, fy = lm[8].y;
@@ -445,7 +383,7 @@ async function startApp() {
     return;
   }
 
-  console.log("AirBrush v5 loaded");
+  console.log("AirBrush v6 loaded");
   statusEl.textContent = "Loading hand tracking (first time takes a few seconds)…";
   const hands = new Hands({
     locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}`,
@@ -522,11 +460,11 @@ $("startBtn").onclick = () => {
   startApp();
 };
 
-// ================= Album storage (IndexedDB, free, in your browser) =================
+// ================= Art gallery storage (IndexedDB, free, in your browser) =================
 function openDB() {
   return new Promise((resolve, reject) => {
-    const r = indexedDB.open("airbrush-album", 1);
-    r.onupgradeneeded = () => r.result.createObjectStore("folders", { keyPath: "id" });
+    const r = indexedDB.open("airbrush-gallery", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("pieces", { keyPath: "id" });
     r.onsuccess = () => resolve(r.result);
     r.onerror = () => reject(r.error);
   });
@@ -534,8 +472,8 @@ function openDB() {
 async function dbRun(mode, fn) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const t = db.transaction("folders", mode);
-    const req = fn(t.objectStore("folders"));
+    const t = db.transaction("pieces", mode);
+    const req = fn(t.objectStore("pieces"));
     t.oncomplete = () => resolve(req ? req.result : undefined);
     t.onerror = () => reject(t.error);
   });
@@ -544,7 +482,7 @@ const dbPut = (f) => dbRun("readwrite", (s) => s.put(f));
 const dbAll = () => dbRun("readonly", (s) => s.getAll());
 const dbDelete = (id) => dbRun("readwrite", (s) => s.delete(id));
 
-// ================= Views (Draw / Album) =================
+// ================= Views (Draw / Art gallery) =================
 function showView(name) {
   currentView = name;
   $("drawView").hidden = name !== "draw";
@@ -553,7 +491,7 @@ function showView(name) {
   $("tabAlbum").classList.toggle("active", name === "album");
   if (name === "album") {
     drawEnabled = false;
-    showAlbumList();
+    renderGallery();
   } else {
     drawEnabled = $("finish").hidden; // keep paused if the "finish" part is open
   }
@@ -608,11 +546,11 @@ $("doneBtn").onclick = async () => {
   current = null;
   $("doneImg").src = img;
   $("resultImg").hidden = true;
+  $("addGalleryBtn").hidden = true;
+  lastResult = null;
   $("genStatus").textContent = "";
   $("finish").hidden = false;
-
-  currentFolder = { id: Date.now(), created: Date.now(), drawing: img, results: [], colors: usedColorNames() };
-  try { await dbPut(currentFolder); } catch (e) { console.error("Album save failed", e); }
+  currentFolder = { drawing: img, colors: usedColorNames() };
 
   $("finish").scrollIntoView({ behavior: "smooth" });
 };
@@ -836,6 +774,8 @@ $("genBtn").onclick = async () => {
 
   const btn = $("genBtn");
   btn.disabled = true;
+  lastResult = null;
+  $("addGalleryBtn").hidden = true;
   const t0 = Date.now();
   let queueInfo = "";
   let hint = "(usually 5–20 seconds, keep this tab open)";
@@ -859,11 +799,10 @@ $("genBtn").onclick = async () => {
     clearInterval(timer);
     $("resultImg").src = image;
     $("resultImg").hidden = false;
-    $("genStatus").textContent = "Done! Downloaded and saved to your Album.";
-
-    currentFolder.results.push({ style: style.label, prompt: [subject, desc].filter(Boolean).join("; "), image });
-    try { await dbPut(currentFolder); } catch (e) { console.error("Album save failed", e); }
-    download(image, `airbrush-${style.id}.png`);
+    $("genStatus").textContent = 'Done! Choose "Add to gallery" to keep it.';
+    lastResult = { style: style.label, prompt: [subject, desc].filter(Boolean).join("; "), image };
+    const add = $("addGalleryBtn");
+    add.textContent = "Add to gallery"; add.disabled = false; add.hidden = false;
   } catch (e) {
     clearInterval(timer);
     $("genStatus").textContent =
@@ -872,57 +811,55 @@ $("genBtn").onclick = async () => {
   btn.disabled = false;
 };
 
-// ================= Album screens =================
+// ================= Art gallery =================
 const fmt = (ms) => new Date(ms).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
-async function showAlbumList() {
-  openFolderId = null;
-  $("folderView").hidden = true;
-  $("albumList").hidden = false;
-  let folders = [];
-  try { folders = await dbAll(); } catch (e) { console.error(e); }
-  folders.sort((a, b) => b.id - a.id);
+$("addGalleryBtn").onclick = async () => {
+  if (!lastResult || !currentFolder) return;
+  const btn = $("addGalleryBtn");
+  btn.disabled = true;
+  try {
+    const now = Date.now();
+    await dbPut({ id: now, created: now, drawing: currentFolder.drawing, image: lastResult.image, style: lastResult.style, prompt: lastResult.prompt });
+    btn.textContent = "Added to gallery";
+    $("genStatus").textContent = "Saved. Open the Art gallery tab to see your drawing next to the generated image.";
+  } catch (e) {
+    console.error("Gallery save failed", e);
+    btn.disabled = false;
+    $("genStatus").textContent = "Couldn't save to the gallery. Please try again.";
+  }
+};
+
+// one row per piece: your drawing on the left, the generated image on the right; newest rows go below older ones
+async function renderGallery() {
+  let items = [];
+  try { items = await dbAll(); } catch (e) { console.error(e); }
+  items.sort((a, b) => a.id - b.id);
 
   const grid = $("albumGrid");
   grid.innerHTML = "";
-  $("albumEmpty").hidden = folders.length > 0;
-  for (const f of folders) {
-    const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `<img alt="Folder cover" /><div class="label">${fmt(f.created)}<br>${f.results.length} generated image${f.results.length === 1 ? "" : "s"}</div>`;
-    card.querySelector("img").src = f.drawing;
-    card.onclick = () => openFolder(f);
-    grid.appendChild(card);
+  $("albumEmpty").hidden = items.length > 0;
+  for (const it of items) {
+    const row = document.createElement("article");
+    row.className = "piece";
+    row.innerHTML = `
+      <div class="pair">
+        <figure><img alt="Your drawing" /><figcaption>My drawing</figcaption><button class="tool dl-a">Download</button></figure>
+        <figure><img alt="Generated image" /><figcaption class="cap-b"></figcaption><button class="tool dl-b">Download</button></figure>
+      </div>
+      <div class="piece-foot"><span class="when"></span><button class="tool del">Delete</button></div>`;
+    const imgs = row.querySelectorAll("img");
+    imgs[0].src = it.drawing;
+    imgs[1].src = it.image;
+    row.querySelector(".cap-b").textContent = it.style + (it.prompt ? " – " + it.prompt : "");
+    row.querySelector(".when").textContent = fmt(it.created);
+    row.querySelector(".dl-a").onclick = () => download(it.drawing, "airbrush-drawing.png");
+    row.querySelector(".dl-b").onclick = () => download(it.image, "airbrush-generated.png");
+    row.querySelector(".del").onclick = async () => {
+      if (!(await askConfirm("Delete this drawing and its generated image from the gallery?"))) return;
+      try { await dbDelete(it.id); } catch (e) { console.error(e); }
+      renderGallery();
+    };
+    grid.appendChild(row);
   }
 }
-
-function openFolder(f) {
-  openFolderId = f.id;
-  $("albumList").hidden = true;
-  $("folderView").hidden = false;
-  $("folderTitle").textContent = "Folder: " + fmt(f.created);
-
-  const box = $("folderItems");
-  box.innerHTML = "";
-  const addItem = (src, label, fileName) => {
-    const c = document.createElement("div");
-    c.className = "card nohover";
-    c.innerHTML = `<img alt="" /><div class="label"></div><button class="tool">Download</button>`;
-    c.querySelector("img").src = src;
-    c.querySelector(".label").textContent = label;
-    c.querySelector("button").onclick = () => download(src, fileName);
-    box.appendChild(c);
-  };
-  addItem(f.drawing, "My drawing", "airbrush-drawing.png");
-  f.results.forEach((r, i) =>
-    addItem(r.image, `${r.style}${r.prompt ? " – " + r.prompt : ""}`, `airbrush-generated-${i + 1}.png`)
-  );
-}
-
-$("folderBack").onclick = showAlbumList;
-$("folderDelete").onclick = async () => {
-  if (openFolderId === null) return;
-  if (!(await askConfirm("Delete this folder (drawing + generated images)?"))) return;
-  try { await dbDelete(openFolderId); } catch (e) { console.error(e); }
-  showAlbumList();
-};
