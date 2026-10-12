@@ -266,7 +266,14 @@ const HAND_LINES = [
   [0, 17],                                   // outer edge of the palm
 ];
 const FINGERTIPS = new Set([4, 8, 12, 16, 20]);
-const SKEL = { bone: "#fff8ea", halo: "rgba(23, 20, 18, 0.9)", joint: "#fff8ea", ring: "#244a77", tip: "#e8704a" };
+// Painted look: palette taken from the background video (ink black, amber, violet, lavender, cream)
+const SKEL = {
+  halo: "rgba(11, 9, 14, 0.92)", streak: "rgba(244, 232, 210, 0.55)",
+  palm: "#b8abea", joint: "#cdc3ea", jointEdge: "#3a2f66", tip: "#ffb347", tipEdge: "#b8431f",
+  finger: ["#ffbf5c", "#f5a444", "#ee9338", "#e5842f", "#d97a45"],   // thumb, index, middle, ring, pinky
+};
+// fixed pseudo-random wobble so the brush edges look hand-made but never flicker from frame to frame
+const JIT = Array.from({ length: 97 }, (_, i) => (Math.sin((i + 1) * 12.9898) * 43758.5453) % 1);
 
 function clearHand() { handCtx.clearRect(0, 0, W, H); }
 
@@ -280,6 +287,32 @@ function toCanvas(p) {
   return { x: W - x, y };
 }
 
+// one bone = a tapered, slightly uneven brush stroke
+function brushPath(c, a, b, w0, w1, grow, seed) {
+  const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d, N = 7;
+  const L = [], R = [];
+  for (let k = 0; k <= N; k++) {
+    const t = k / N, cx = a.x + dx * t, cy = a.y + dy * t;
+    const hl = ((w0 + (w1 - w0) * t) / 2 + grow) * (1 + 0.14 * JIT[(seed * 7 + k) % 97]);
+    const hr = ((w0 + (w1 - w0) * t) / 2 + grow) * (1 + 0.14 * JIT[(seed * 5 + k + 3) % 97]);
+    L.push({ x: cx + nx * hl, y: cy + ny * hl }); R.push({ x: cx - nx * hr, y: cy - ny * hr });
+  }
+  c.beginPath(); c.moveTo(L[0].x, L[0].y);
+  L.forEach((p) => c.lineTo(p.x, p.y));
+  for (let k = N; k >= 0; k--) c.lineTo(R[k].x, R[k].y);
+  c.closePath();
+}
+// one joint = a small irregular blot of pigment
+function blotPath(c, p, r, seed) {
+  const n = 10; c.beginPath();
+  for (let k = 0; k < n; k++) {
+    const ang = (k / n) * Math.PI * 2, rr = r * (1 + 0.18 * JIT[(seed * 3 + k) % 97]);
+    const x = p.x + Math.cos(ang) * rr, y = p.y + Math.sin(ang) * rr;
+    k ? c.lineTo(x, y) : c.moveTo(x, y);
+  }
+  c.closePath();
+}
+
 function drawHand(lm) {
   const c = handCtx;
   c.clearRect(0, 0, W, H);
@@ -288,18 +321,31 @@ function drawHand(lm) {
   const s = Math.min(1.3, Math.max(0.75, hand / 115));   // sizes follow hand size, kept modest
   c.save();
   c.lineCap = "round"; c.lineJoin = "round"; c.globalAlpha = 1;
-  const lines = HAND_LINES.filter(([a, b]) => P[a] && P[b]);
-  // dark halo first so the thin ivory lines stay readable on any background
-  c.strokeStyle = SKEL.halo; c.lineWidth = 4.6 * s;
-  c.beginPath(); lines.forEach(([a, b]) => { c.moveTo(P[a].x, P[a].y); c.lineTo(P[b].x, P[b].y); }); c.stroke();
-  c.strokeStyle = SKEL.bone; c.lineWidth = 2.2 * s;
-  c.beginPath(); lines.forEach(([a, b]) => { c.moveTo(P[a].x, P[a].y); c.lineTo(P[b].x, P[b].y); }); c.stroke();
-  // landmark points
+  const bones = HAND_LINES.map(([a, b], i) => {
+    const finger = b === a + 1 || a === 0 && b === 1;
+    const k = finger ? (b - 1) % 4 : 0, f = Math.min(4, Math.max(0, Math.floor((b - 1) / 4)));
+    const w0 = (finger ? 12.5 - k * 1.7 : 10) * s;
+    return { a: P[a], b: P[b], w0, w1: finger ? w0 - 1.4 * s : w0, col: finger ? SKEL.finger[f] : SKEL.palm, seed: i + 1 };
+  }).filter((q) => q.a && q.b);
+  // 1. dark ink under-stroke so the paint stays readable on any camera background
+  c.fillStyle = SKEL.halo;
+  bones.forEach((q) => { brushPath(c, q.a, q.b, q.w0, q.w1, 2 * s, q.seed); c.fill(); });
+  // 2. pigment, then a few thin bristle streaks of lighter paint along each stroke
+  bones.forEach((q) => {
+    brushPath(c, q.a, q.b, q.w0, q.w1, 0, q.seed); c.fillStyle = q.col; c.fill();
+    const dx = q.b.x - q.a.x, dy = q.b.y - q.a.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
+    c.strokeStyle = SKEL.streak; c.lineWidth = 1.1 * s;
+    [-0.24, 0.22].forEach((o, j) => {
+      const off = o * q.w0, g = 0.12 + 0.1 * Math.abs(JIT[(q.seed * 11 + j) % 97]);
+      c.beginPath(); c.moveTo(q.a.x + dx * g + nx * off, q.a.y + dy * g + ny * off); c.lineTo(q.b.x - dx * g + nx * off, q.b.y - dy * g + ny * off); c.stroke();
+    });
+  });
+  // 3. one pigment blot for every landmark the model returns
   P.forEach((p, i) => {
-    const tip = FINGERTIPS.has(i), r = (tip ? 5.2 : 4) * s;
-    c.beginPath(); c.arc(p.x, p.y, r + 1.6, 0, Math.PI * 2); c.fillStyle = SKEL.halo; c.fill();
-    c.beginPath(); c.arc(p.x, p.y, r, 0, Math.PI * 2); c.fillStyle = tip ? SKEL.tip : SKEL.joint; c.fill();
-    c.lineWidth = 1.6; c.strokeStyle = SKEL.ring; c.stroke();
+    const tip = FINGERTIPS.has(i), r = (i === 0 ? 6.4 : tip ? 5.6 : 4.4) * s;
+    blotPath(c, p, r + 1.8 * s, i + 1); c.fillStyle = SKEL.halo; c.fill();
+    blotPath(c, p, r, i + 1); c.fillStyle = tip ? SKEL.tip : SKEL.joint; c.fill();
+    c.lineWidth = 1.4; c.strokeStyle = tip ? SKEL.tipEdge : SKEL.jointEdge; c.stroke();
   });
   c.restore();
 }
@@ -421,7 +467,7 @@ async function startApp() {
     return;
   }
 
-  console.log("AirBrush v9 loaded");
+  console.log("AirBrush v10 loaded");
   statusEl.textContent = "Loading hand tracking (first time takes a few seconds)…";
   const hands = new Hands({
     locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}`,
@@ -446,10 +492,22 @@ async function startApp() {
   loop();
 }
 
+// ---------- background video: muted, looping, inline; paused for reduced motion; restarted after a blocked autoplay ----------
+(function () {
+  const v = $("bgVideo");
+  if (!v) return;
+  v.muted = true; v.defaultMuted = true; v.playsInline = true;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { v.removeAttribute("autoplay"); v.pause(); return; }
+  const go = () => { const p = v.play(); if (p && p.catch) p.catch(() => {}); };
+  go();
+  ["pointerdown", "keydown", "touchstart"].forEach((ev) => addEventListener(ev, () => { if (v.paused) go(); }, { passive: true }));
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && v.paused) go(); });
+})();
+
 // ---------- front page: light paint strokes that follow the mouse and fade away ----------
 (function () {
   const cv = $("fx"), ctx = cv.getContext("2d"), landing = $("landing");
-  const HUES = [212, 18, 38, 200];             // ink blue, terracotta, ochre, slate: a restrained painter's palette
+  const HUES = [32, 255, 40, 268];              // amber, violet, gold, lavender: the colours of the background video
   const LIFE = 1700;                           // ms until a stroke has fully faded
   const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let strokes = [], cur = null, target = null, sm = null, n = 0, dpr = 1;
@@ -481,8 +539,8 @@ async function startApp() {
       for (let i = 1; i < s.pts.length; i++) {
         const a = s.pts[i - 1], b = s.pts[i], f = Math.pow(1 - (now - b.t) / LIFE, 1.4);   // 1 = fresh, 0 = gone
         const half = 4.5 * (0.3 + 0.7 * f), dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
-        ctx.strokeStyle = `hsl(${(s.hue + i * 0.6) % 360}, 42%, 38%)`;
-        ctx.globalAlpha = 0.09 * f; ctx.lineWidth = half * 1.4;
+        ctx.strokeStyle = `hsl(${(s.hue + i * 0.6) % 360}, 62%, 70%)`;
+        ctx.globalAlpha = 0.12 * f; ctx.lineWidth = half * 1.4;
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
         for (const h of s.hairs) {
           ctx.globalAlpha = h.a * f; ctx.lineWidth = h.w;
@@ -969,3 +1027,4 @@ async function renderGallery() {
     grid.appendChild(row);
   }
 }
+

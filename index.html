@@ -8,12 +8,29 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <!-- "Dream" brush-script reference: closest licensed match is Kaushan Script (SIL Open Font License) -->
   <link href="https://fonts.googleapis.com/css2?family=Kaushan+Script&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=9" />
+  <link rel="stylesheet" href="style.css?v=10" />
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
 </head>
 <body>
-  <!-- paper background (grain is drawn by CSS) -->
-  <div class="bg" aria-hidden="true"></div>
+  <!-- background: the uploaded video (autoplay, muted, looping, inline). The poster frame shows until it plays. -->
+  <video id="bgVideo" class="bgvideo" autoplay muted loop playsinline preload="auto" poster="background-poster.jpg" aria-hidden="true" tabindex="-1" disablepictureinpicture disableremoteplayback>
+    <source src="background.webm" type="video/webm" />
+    <source src="background.mp4" type="video/mp4" />
+  </video>
+  <div class="bgshade" aria-hidden="true"></div>
+
+  <!-- brush filters: rough painted edges for boxes and buttons, dry-brush bristle streaks for big lettering -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+    <filter id="rough" x="-3%" y="-10%" width="106%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G"/></filter>
+    <filter id="rough-text" x="-2%" y="-10%" width="104%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="1.6" xChannelSelector="R" yChannelSelector="G"/></filter>
+    <filter id="drybrush" x="-4%" y="-12%" width="108%" height="124%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="5" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="3.4" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.45" numOctaves="2" seed="9" result="s"/>
+      <feColorMatrix in="s" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  7 0 0 0 -2.3" result="m"/>
+      <feComposite in="d" in2="m" operator="in"/>
+    </filter>
+  </defs></svg>
 
   <!-- ===== FRONT PAGE ===== -->
   <section id="landing">
@@ -171,6 +188,7 @@
 
   
 
-  <script src="script.js?v=9"></script>
+  <script src="script.js?v=10"></script>
 </body>
 </html>
+
