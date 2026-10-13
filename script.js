@@ -467,7 +467,7 @@ async function startApp() {
     return;
   }
 
-  console.log("AirBrush v10 loaded");
+  console.log("AirBrush v11 loaded");
   statusEl.textContent = "Loading hand tracking (first time takes a few seconds)…";
   const hands = new Hands({
     locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}`,
@@ -557,6 +557,7 @@ async function startApp() {
 $("startBtn").onclick = () => {
   $("landing").hidden = true;
   $("app").hidden = false;
+  document.body.classList.add("in-app");   // a little more shading behind the interface for readability
   startApp();
 };
 
