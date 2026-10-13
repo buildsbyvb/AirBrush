@@ -200,11 +200,11 @@ textarea,#hexIn{color:#fff}textarea:focus{border-color:var(--lav);box-shadow:non
 @media(max-width:800px){.brand{font-size:36px}}
 
 /* ================= v16: Atma everywhere ================= */
-@font-face{font-family:"Atma";font-weight:300;font-style:normal;font-display:swap;src:url("fonts/Atma-Light.ttf") format("truetype")}
-@font-face{font-family:"Atma";font-weight:400;font-style:normal;font-display:swap;src:url("fonts/Atma-Regular.ttf") format("truetype")}
-@font-face{font-family:"Atma";font-weight:500;font-style:normal;font-display:swap;src:url("fonts/Atma-Medium.ttf") format("truetype")}
-@font-face{font-family:"Atma";font-weight:600;font-style:normal;font-display:swap;src:url("fonts/Atma-SemiBold.ttf") format("truetype")}
-@font-face{font-family:"Atma";font-weight:700;font-style:normal;font-display:swap;src:url("fonts/Atma-Bold.ttf") format("truetype")}
+@font-face{font-family:"Atma";font-weight:300;font-style:normal;font-display:swap;src:url("Atma-Light.ttf") format("truetype")}
+@font-face{font-family:"Atma";font-weight:400;font-style:normal;font-display:swap;src:url("Atma-Regular.ttf") format("truetype")}
+@font-face{font-family:"Atma";font-weight:500;font-style:normal;font-display:swap;src:url("Atma-Medium.ttf") format("truetype")}
+@font-face{font-family:"Atma";font-weight:600;font-style:normal;font-display:swap;src:url("Atma-SemiBold.ttf") format("truetype")}
+@font-face{font-family:"Atma";font-weight:700;font-style:normal;font-display:swap;src:url("Atma-Bold.ttf") format("truetype")}
 
 :root{--sans:"Atma","Segoe UI",system-ui,sans-serif;--serif:var(--sans);--display:var(--sans);--script:var(--sans)}
 body,button,input,textarea{font-family:var(--sans)}
