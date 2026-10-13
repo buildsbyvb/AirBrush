@@ -458,42 +458,45 @@ async function startApp() {
   loop();
 }
 
-// ---------- ambient background: one or two bold brush strokes at a time are painted across the black, then vanish ----------
+// ---------- ambient background: one or two long pastel brush strokes are painted across the screen, then slowly dissolve ----------
 (function () {
-  const cv = $("bg"), ctx = cv.getContext("2d");
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;   // calm: plain black
-  const HUES = [350, 18, 42, 168, 214, 292];    // crimson, vermilion, gold, teal, cobalt, violet: rich, not pastel
-  const LIFE = 3600, N = 11, CHUNK = 5;
-  let dpr = 1, w = 0, h = 0, strokes = [], nextSpawn = 500, prev = performance.now();
-  function fit() { dpr = Math.min(window.devicePixelRatio || 1, 1.5); w = innerWidth; h = innerHeight; cv.width = w * dpr; cv.height = h * dpr; }
+  const host = $("paint"), reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) return;   // calm: plain black
+  const cv = document.createElement("canvas"), ctx = cv.getContext("2d"); host.appendChild(cv); cv.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
+  const HUES = [345, 205, 265, 120, 22, 52, 172, 285];   // dusty pink, powder blue, lavender, sage, peach, pale yellow, turquoise, lilac
+  const LIFE = 6500, N = 16, CHUNK = 8, R = (a, b) => a + Math.random() * (b - a);
+  let dpr = 1, w = 0, h = 0, strokes = [], nextSpawn = 600, prev = performance.now();
+  function fit() { dpr = Math.min(devicePixelRatio || 1, 1.5); w = innerWidth; h = innerHeight; cv.width = w * dpr; cv.height = h * dpr; }
   fit(); addEventListener("resize", fit);
   function spawn(now) {
-    const x = w * (0.1 + Math.random() * 0.8), y = h * (0.1 + Math.random() * 0.8);
-    strokes.push({ x, y, a: Math.atan2(h / 2 - y, w / 2 - x) + (Math.random() - 0.5) * 2, ph: Math.random() * 6.28, sp: 520 + Math.random() * 300, born: now, dur: 1500 + Math.random() * 900,
-      W: 18 + Math.random() * 16, hue: HUES[(Math.random() * HUES.length) | 0], shift: (Math.random() < 0.5 ? -1 : 1) * (25 + Math.random() * 35), pts: [],
-      br: Array.from({ length: N }, (_, j) => ({ o: (j / (N - 1)) * 2 - 1 + (Math.random() - 0.5) * 0.08, lw: 3 + Math.random() * 3.2, al: 0.5 + Math.random() * 0.5, dl: (Math.random() - 0.5) * 16, dry: 0.55 + Math.random() * 0.45 })) });
+    const horiz = Math.random() < 0.8, dir = Math.random() < 0.5 ? 1 : -1, dur = R(4200, 5800), L = (horiz ? w : h) * R(1.05, 1.3);
+    const x = horiz ? (dir > 0 ? -0.06 * w : 1.06 * w) : w * R(0.15, 0.85), y = horiz ? h * R(0.15, 0.85) : (dir > 0 ? -0.06 * h : 1.06 * h);
+    const a = (horiz ? (dir > 0 ? 0 : Math.PI) : (dir > 0 ? Math.PI / 2 : -Math.PI / 2)) + R(-0.3, 0.3);
+    strokes.push({ x, y, a, ph: R(0, 6.28), sp: L / ((dur / 1000) * 0.72), born: now, dur, W: R(55, 90), hue: HUES[(Math.random() * HUES.length) | 0], shift: R(-18, 18), pts: [],
+      br: Array.from({ length: N }, (_, j) => ({ o: (j / (N - 1)) * 2 - 1 + R(-0.05, 0.05), lw: R(2, 5.5), al: R(0.45, 1), dl: R(-7, 7), dry: R(0.5, 0.95) })) });
   }
   function frame(now) {
     const dt = Math.min(now - prev, 50) / 1000; prev = now;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
-    if (now > nextSpawn && strokes.length < 2) { spawn(now); nextSpawn = now + 1200 + Math.random() * 2200; }
+    if (now > nextSpawn && strokes.length < 2) { spawn(now); nextSpawn = now + R(1500, 4500); }
+    const dim = document.body.classList.contains("in-app") ? 0.5 : 1;
     ctx.lineCap = ctx.lineJoin = "round";
     strokes = strokes.filter((s) => { s.pts = s.pts.filter((p) => now - p.t < LIFE); return s.pts.length > 0 || now - s.born < s.dur; });
     for (const s of strokes) {
-      if (now - s.born < s.dur) {   // the brush is still painting: gentle S-curve, thick in the middle, pointed at both ends
+      if (now - s.born < s.dur) {   // the brush is moving: long S-curve, pressure builds then lifts
         const k = (now - s.born) / s.dur, env = Math.pow(Math.sin(Math.PI * k), 0.7), v = s.sp * (0.35 + 0.65 * env) * dt;
-        s.a += Math.sin((now / 1000) * 1.1 + s.ph) * 1.2 * dt; s.x += Math.cos(s.a) * v; s.y += Math.sin(s.a) * v;
-        s.pts.push({ x: s.x, y: s.y, t: now, k, nx: -Math.sin(s.a), ny: Math.cos(s.a), w: s.W * Math.max(0.12, env),
+        s.a += Math.sin((now / 1000) * 0.9 + s.ph) * 0.8 * dt; s.x += Math.cos(s.a) * v; s.y += Math.sin(s.a) * v;
+        s.pts.push({ x: s.x, y: s.y, t: now, k, nx: -Math.sin(s.a), ny: Math.cos(s.a), w: s.W * Math.max(0.15, env),
           b: s.br.map((r) => r.al * (k > r.dry ? (Math.random() < 0.5 ? 0.1 : 0.85) : 1)) });   // bristles run dry near the end
       }
       const pts = s.pts;
       for (let i = 0; i + 1 < pts.length; i += CHUNK) {
-        const e = Math.min(i + CHUNK, pts.length - 1), m = pts[Math.min(i + 2, pts.length - 1)], f = Math.pow(Math.max(0, 1 - (now - m.t) / LIFE), 1.2);
+        const e = Math.min(i + CHUNK, pts.length - 1), m = pts[Math.min(i + 3, pts.length - 1)], f = Math.pow(Math.max(0, 1 - (now - m.t) / LIFE), 1.3);
         if (f <= 0.01) continue;
         const hue = s.hue + s.shift * m.k;
         s.br.forEach((r, j) => {
-          const al = m.b[j] * f * 0.62; if (al < 0.02) return;
-          ctx.globalAlpha = al; ctx.lineWidth = r.lw; ctx.strokeStyle = `hsl(${hue}, 88%, ${52 + r.dl}%)`;
+          const al = m.b[j] * f * 0.5 * dim; if (al < 0.02) return;
+          ctx.globalAlpha = al; ctx.lineWidth = r.lw; ctx.strokeStyle = `hsl(${hue}, 52%, ${79 + r.dl}%)`;
           ctx.beginPath();
           for (let q = i; q <= e; q++) { const p = pts[q], X = p.x + p.nx * r.o * p.w, Y = p.y + p.ny * r.o * p.w; q === i ? ctx.moveTo(X, Y) : ctx.lineTo(X, Y); }
           ctx.stroke();
