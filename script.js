@@ -294,8 +294,6 @@ function drawHand(lm) {
     c.fillStyle = "rgba(126, 232, 209, 0.05)"; c.fill();
     c.strokeStyle = "rgba(255,255,255,0.2)"; c.lineWidth = 0.6; c.setLineDash([2, 3]); c.stroke();
     [[4, 8], [8, 12], [12, 16], [16, 20]].forEach(([a, b]) => { c.beginPath(); c.moveTo(P[a].x, P[a].y); c.lineTo(P[b].x, P[b].y); c.stroke(); });
-    c.strokeStyle = "rgba(255,255,255,0.3)"; c.lineWidth = 0.7; c.setLineDash([7 * s, 6 * s]); c.lineDashOffset = -performance.now() / 45;
-    c.beginPath(); c.arc((P[0].x + P[9].x) / 2, (P[0].y + P[9].y) / 2, hand * 0.8, 0, Math.PI * 2); c.stroke();
     c.setLineDash([]);
   }
   HAND_LINES.forEach(([a, b]) => {   // hairline bones with a soft glow
@@ -311,8 +309,6 @@ function drawHand(lm) {
     c.beginPath(); c.arc(p.x, p.y, 0.9, 0, Math.PI * 2); c.fillStyle = col; c.fill();
     if (tip) { c.lineWidth = 0.8; c.beginPath(); [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([x, y]) => { c.moveTo(p.x + x * (r + 2), p.y + y * (r + 2)); c.lineTo(p.x + x * (r + 6 * s), p.y + y * (r + 6 * s)); }); c.stroke(); }
   });
-  c.shadowBlur = 0; c.font = "9px ui-monospace, Menlo, Consolas, monospace"; c.fillStyle = "rgba(255,255,255,0.8)";
-  if (P[8]) c.fillText("X" + (lm[8].x * 100).toFixed(0) + " Y" + (lm[8].y * 100).toFixed(0), P[8].x + 12, P[8].y - 10);
   c.restore();
 }
 
