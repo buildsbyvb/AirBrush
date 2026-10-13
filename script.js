@@ -492,10 +492,58 @@ async function startApp() {
   loop();
 }
 
+// ---------- ambient background: sparse silver glitter + pastel brush strokes that paint themselves, then vanish ----------
+(function () {
+  const cv = $("bg"), ctx = cv.getContext("2d");
+  const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const HUES = [345, 200, 275, 150, 45, 320];   // rose, sky, lilac, mint, butter, pink (all pastel)
+  const LIFE = 3000;                            // ms a painted point stays before it has fully faded
+  let dpr = 1, w = 0, h = 0, stars = [], strokes = [], nextSpawn = 0, prev = performance.now();
+  function fit() {
+    dpr = Math.min(window.devicePixelRatio || 1, 1.5); w = innerWidth; h = innerHeight; cv.width = w * dpr; cv.height = h * dpr;
+    stars = Array.from({ length: Math.round((w * h) / 30000) }, () => ({ x: Math.random() * w, y: Math.random() * h, r: 0.4 + Math.random() * 1.1, ph: Math.random() * 6.28, sp: 0.4 + Math.random() * 1.4, big: Math.random() < 0.12 }));
+  }
+  fit(); addEventListener("resize", fit);
+  function spawn(now) {
+    strokes.push({ x: Math.random() * w, y: Math.random() * h, a: Math.random() * 6.28, ph: Math.random() * 6.28, fr: 0.5 + Math.random() * 1.1, sp: 150 + Math.random() * 150, born: now, dur: 2200 + Math.random() * 2200, wd: 3 + Math.random() * 7, hue: HUES[(Math.random() * HUES.length) | 0], pts: [],
+      hairs: Array.from({ length: 2 }, () => ({ o: Math.random() * 2 - 1, w: 0.5 + Math.random() * 0.8, a: 0.2 + Math.random() * 0.25 })) });
+  }
+  function frame(now) {
+    const dt = Math.min(now - prev, 50) / 1000; prev = now;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = ctx.strokeStyle = "#eef1fa"; ctx.lineWidth = 0.6;
+    for (const s of stars) {                      // glitter: slow twinkle, a few get a tiny cross-shaped glint
+      const t = calm ? 0.8 : 0.5 + 0.5 * Math.sin((now / 1000) * s.sp + s.ph), a = 0.1 + 0.9 * t * t;
+      ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.283); ctx.fill();
+      if (s.big && a > 0.55) { const L = s.r * 5 * a; ctx.beginPath(); ctx.moveTo(s.x - L, s.y); ctx.lineTo(s.x + L, s.y); ctx.moveTo(s.x, s.y - L); ctx.lineTo(s.x, s.y + L); ctx.stroke(); }
+    }
+    if (!calm) {
+      if (now > nextSpawn && strokes.length < 4) { spawn(now); nextSpawn = now + 800 + Math.random() * 1200; }
+      ctx.lineCap = ctx.lineJoin = "round";
+      strokes = strokes.filter((s) => { s.pts = s.pts.filter((p) => now - p.t < LIFE); return s.pts.length > 0 || now - s.born < s.dur; });
+      for (const s of strokes) {
+        if (now - s.born < s.dur) {               // the brush is still painting: steer smoothly, ease in and out
+          const env = Math.sin(Math.PI * ((now - s.born) / s.dur)), v = s.sp * (0.3 + 0.7 * env) * dt, last = s.pts[s.pts.length - 1];
+          s.a += Math.sin((now / 1000) * s.fr + s.ph) * 1.6 * dt; s.x += Math.cos(s.a) * v; s.y += Math.sin(s.a) * v;
+          if (!last || Math.hypot(s.x - last.x, s.y - last.y) > 4) s.pts.push({ x: s.x, y: s.y, t: now, wd: s.wd * (0.3 + 0.7 * env) });
+        }
+        ctx.strokeStyle = `hsl(${s.hue}, 85%, 84%)`;
+        for (let i = 1; i < s.pts.length; i++) {
+          const p = s.pts[i - 1], q = s.pts[i], f = Math.pow(1 - (now - q.t) / LIFE, 1.3), dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
+          ctx.globalAlpha = 0.22 * f; ctx.lineWidth = q.wd; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke();
+          for (const hr of s.hairs) { const o = hr.o * q.wd * 0.6; ctx.globalAlpha = hr.a * f; ctx.lineWidth = hr.w; ctx.beginPath(); ctx.moveTo(p.x + nx * o, p.y + ny * o); ctx.lineTo(q.x + nx * o, q.y + ny * o); ctx.stroke(); }
+        }
+      }
+    }
+    ctx.globalAlpha = 1; requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+
 // ---------- front page: light paint strokes that follow the mouse and fade away ----------
 (function () {
   const cv = $("fx"), ctx = cv.getContext("2d"), landing = $("landing");
-  const HUES = [265, 330, 38, 175];              // violet, pink, amber, teal: the aurora colours
+  const HUES = [345, 200, 275, 150];             // pastel rose, sky, lilac, mint
   const LIFE = 1700;                           // ms until a stroke has fully faded
   const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let strokes = [], cur = null, target = null, sm = null, n = 0, dpr = 1;
@@ -527,7 +575,7 @@ async function startApp() {
       for (let i = 1; i < s.pts.length; i++) {
         const a = s.pts[i - 1], b = s.pts[i], f = Math.pow(1 - (now - b.t) / LIFE, 1.4);   // 1 = fresh, 0 = gone
         const half = 4.5 * (0.3 + 0.7 * f), dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
-        ctx.strokeStyle = `hsl(${(s.hue + i * 0.6) % 360}, 62%, 70%)`;
+        ctx.strokeStyle = `hsl(${(s.hue + i * 0.6) % 360}, 80%, 84%)`;
         ctx.globalAlpha = 0.12 * f; ctx.lineWidth = half * 1.4;
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
         for (const h of s.hairs) {

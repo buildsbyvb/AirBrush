@@ -6,33 +6,25 @@
   <title>AirBrush</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;500;600;700&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=12" />
+    <link href="https://fonts.googleapis.com/css2?family=Yellowtail&family=Caveat+Brush&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=13" />
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
 </head>
 <body>
-  <!-- animated aurora background (replaces the old video) -->
-<div class="aurora" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <!-- ambient background: black sky, sparse glitter, pastel brush strokes (see script.js) -->
+<canvas id="bg" aria-hidden="true"></canvas>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<filter id="rough-text" x="-2%" y="-10%" width="104%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="1.6" xChannelSelector="R" yChannelSelector="G"/></filter>
+<filter id="drybrush" x="-4%" y="-12%" width="108%" height="124%"><feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="5" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3.4" xChannelSelector="R" yChannelSelector="G" result="d"/><feTurbulence type="fractalNoise" baseFrequency="0.012 0.45" numOctaves="2" seed="9" result="s"/><feColorMatrix in="s" type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 7 0 0 0 -2.3" result="m"/><feComposite in="d" in2="m" operator="in"/></filter>
+</defs></svg>
 
 <!-- ===== FRONT PAGE ===== -->
   <section id="landing">
 <canvas id="fx" aria-hidden="true"></canvas>
-<svg class="squiggle s1" viewBox="0 0 400 200" aria-hidden="true"><defs><linearGradient id="g1"><stop offset="0" stop-color="#8b5cf6"/><stop offset="1" stop-color="#3ee7d0"/></linearGradient><linearGradient id="g2"><stop offset="0" stop-color="#ff5fa2"/><stop offset="1" stop-color="#ffb347"/></linearGradient></defs><path d="M10 120 C60 20 110 20 150 100 S240 190 290 90 S360 20 390 70"/></svg>
-<svg class="squiggle s2" viewBox="0 0 400 200" aria-hidden="true"><path d="M10 80 C70 170 120 170 170 90 S270 10 320 100 S370 160 392 120"/></svg>
-<header class="lnav"><div class="logo">AirBrush</div><button class="btn" onclick="document.getElementById('startBtn').click()">Start Creating</button></header>
 <div class="welcome">
-<span class="eyebrow">&#9995; No mouse. No tablet. Just your hand.</span>
-<h1>Draw in the air.<br><em>Make it art.</em></h1>
-<p class="tagline">Wave a finger at your webcam, sketch anything, and AirBrush turns it into oil paintings, watercolours, anime and more. Free, right in your browser.</p>
-<div class="cta-row"><button id="startBtn" class="btn primary">Start Creating</button><a class="btn" href="#how">How it works</a></div>
-<div class="stats" id="how">
-<div class="stat"><b>&#9757;&#65039; 1 finger</b><span>to draw</span></div>
-<div class="stat"><b>&#9996;&#65039; 2 fingers</b><span>to erase</span></div>
-<div class="stat"><b>&#128400; Palm</b><span>to pause</span></div>
-<div class="stat"><b>10 styles</b><span>one click each</span></div>
+<h1>AirBrush</h1>
+<button id="startBtn" class="btn primary">Get Started</button>
 </div>
-</div>
-<div class="marquee" aria-hidden="true"><div class="track"><span>Realistic image</span><span>Black & white</span><span>Watercolour</span><span>Oil painting</span><span>Pencil sketch</span><span>Cartoon</span><span>Anime</span><span>Pixel art</span><span>3D render</span><span>Comic book</span><span>Realistic image</span><span>Black & white</span><span>Watercolour</span><span>Oil painting</span><span>Pencil sketch</span><span>Cartoon</span><span>Anime</span><span>Pixel art</span><span>3D render</span><span>Comic book</span></div></div>
 </section>
 
 <!-- ===== APP ===== -->
@@ -53,16 +45,16 @@
           <fieldset>
             <legend>Tools</legend>
             <div class="toolgrid">
-              <button id="penBtn" class="tool active" aria-pressed="true"><svg viewBox="0 0 16 16"><path d="M3 13l.8-3.2L11 2.6a1.4 1.4 0 012 2L5.8 12.2z"/><path d="M9.6 4l2.4 2.4"/></svg>Brush</button>
-              <button id="eraserBtn" class="tool" aria-pressed="false"><svg viewBox="0 0 16 16"><path d="M9.5 3.2l3.3 3.3a1 1 0 010 1.4L8.2 12.5H5L2.9 10.4a1 1 0 010-1.4l5.2-5.8a1 1 0 011.4 0z"/><path d="M6 7l4 4M8 12.5h6"/></svg>Eraser</button>
+              <button id="penBtn" class="tool active" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M20 4c-3.2.6-7.2 4.6-8.6 7.4l2.2 2.2C16.6 12.2 20.4 7.8 20 4z"/><path d="M11.2 12.2c-2 0-3.4 1.4-3.6 3.2-.2 1.6-.9 2.6-2.6 3.4 3.8 1.2 7.2-.2 8-3.6"/></svg>Brush</button>
+              <button id="eraserBtn" class="tool" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M5 15.4l8.4-8.8a1.6 1.6 0 012.3 0l2.7 2.7a1.6 1.6 0 010 2.3L12.8 19H8.2z"/><path d="M8.6 11.6l5 5M12.5 19H20"/></svg>Eraser</button>
             </div>
           </fieldset>
 
           <fieldset>
             <legend>Edit</legend>
             <div class="toolgrid">
-              <button id="undoBtn" class="tool"><svg viewBox="0 0 16 16"><path d="M5 3L2.5 5.5 5 8M3 5.5h6a3.5 3.5 0 010 7H6"/></svg>Undo</button>
-              <button id="clearBtn" class="tool"><svg viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5M7 7v4M9 7v4"/></svg>Clear</button>
+              <button id="undoBtn" class="tool"><svg viewBox="0 0 24 24"><path d="M9 6.5L4.5 11 9 15.5"/><path d="M5 11h8.5a4.5 4.5 0 010 9H11"/></svg>Undo</button>
+              <button id="clearBtn" class="tool"><svg viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.8 5.8l2.6 2.6M15.6 15.6l2.6 2.6M18.2 5.8l-2.6 2.6M8.4 15.6l-2.6 2.6"/></svg>Clear</button>
             </div>
           </fieldset>
 
@@ -130,7 +122,7 @@
               <h3>What have you drawn? <small>(optional)</small></h3>
               <div class="desc-wrap">
                 <textarea id="subject" rows="1" placeholder="e.g. a tree"></textarea>
-                <button id="micBtn2" class="tool mic" title="Speak what you have drawn" aria-label="Speak what you have drawn"><svg viewBox="0 0 16 16"><rect x="6" y="1" width="4" height="8" rx="2"/><path d="M3 7a5 5 0 0010 0M8 12v3M5 15h6"/></svg></button>
+                <button id="micBtn2" class="tool mic" title="Speak what you have drawn" aria-label="Speak what you have drawn"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21M9 21h6"/></svg></button>
               </div>
               <p id="subjectMsg" class="mic-msg" aria-live="polite"></p>
               <p class="hint">Naming your drawing helps the image match your shapes and colors.</p>
@@ -138,7 +130,7 @@
               <h3>Would you like anything added? <small>(optional)</small></h3>
               <div class="desc-wrap">
                 <textarea id="desc" rows="2" placeholder="e.g. add a red apple on the tree"></textarea>
-                <button id="micBtn" class="tool mic" title="Speak what you would like added" aria-label="Speak what you would like added"><svg viewBox="0 0 16 16"><rect x="6" y="1" width="4" height="8" rx="2"/><path d="M3 7a5 5 0 0010 0M8 12v3M5 15h6"/></svg></button>
+                <button id="micBtn" class="tool mic" title="Speak what you would like added" aria-label="Speak what you would like added"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21M9 21h6"/></svg></button>
               </div>
 
               <p id="descMsg" class="mic-msg" aria-live="polite"></p>
@@ -181,7 +173,7 @@
 
   
 
-  <script src="script.js?v=12"></script>
+  <script src="script.js?v=13"></script>
 </body>
 </html>
 
