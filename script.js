@@ -990,7 +990,7 @@ async function renderGallery() {
 // ---------- feedback form ----------
 // To receive feedback: make a free form at formspree.io and paste its address below (https://formspree.io/f/xxxxxxx),
 // or put your email in FEEDBACK_EMAIL to open the visitor's email app instead.
-const FEEDBACK_ENDPOINT = "", FEEDBACK_EMAIL = "";
+const FEEDBACK_ENDPOINT = "", FEEDBACK_EMAIL = "buildsbyvb@gmail.com";
 (function () {
   const f = $("fbForm"), msg = $("fbMsg"), btn = $("fbBtn");
   f.onsubmit = async (e) => {
