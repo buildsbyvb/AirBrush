@@ -200,11 +200,8 @@ textarea,#hexIn{color:#fff}textarea:focus{border-color:var(--lav);box-shadow:non
 @media(max-width:800px){.brand{font-size:36px}}
 
 /* ================= v16: Atma everywhere ================= */
-@font-face{font-family:"Atma";font-weight:300;font-style:normal;font-display:swap;src:url("Atma-Light.ttf") format("truetype")}
-@font-face{font-family:"Atma";font-weight:400;font-style:normal;font-display:swap;src:url("Atma-Regular.ttf") format("truetype")}
 @font-face{font-family:"Atma";font-weight:500;font-style:normal;font-display:swap;src:url("Atma-Medium.ttf") format("truetype")}
 @font-face{font-family:"Atma";font-weight:600;font-style:normal;font-display:swap;src:url("Atma-SemiBold.ttf") format("truetype")}
-@font-face{font-family:"Atma";font-weight:700;font-style:normal;font-display:swap;src:url("Atma-Bold.ttf") format("truetype")}
 
 :root{--sans:"Atma","Segoe UI",system-ui,sans-serif;--serif:var(--sans);--display:var(--sans);--script:var(--sans)}
 body,button,input,textarea{font-family:var(--sans)}
@@ -218,3 +215,24 @@ h3 small{font:400 14px var(--sans)}
 .btn.primary{font:500 19px/1 var(--sans);letter-spacing:.02em}.welcome .btn.primary{font-size:24px}
 textarea,#hexIn{font:400 17px var(--sans)}
 @media(max-width:800px){.brand{font-size:28px}}
+
+/* ================= v17: landing page stays Atma; the app uses Instrument Serif with a classic, formal finish ================= */
+#app,#dlg{--sans:"Instrument Serif","Times New Roman",Georgia,serif;--serif:var(--sans);--display:var(--sans);--script:var(--sans);font-synthesis:none}
+#app,#dlg,#app *,#dlg *{font-weight:400}
+#app,#dlg{font-size:19px;letter-spacing:.01em}
+#app h2{font-size:clamp(38px,4.6vw,54px)}#app h3{font-size:25px}#app legend{font-size:23px;font-style:italic}#app .brand{font-size:36px}
+#app .box-title{font-size:28px}#app .pair figcaption{font-size:24px;font-style:italic}#app h3 small{font:400 17px var(--sans)}
+#app .btn,#app .tool,#app .tab,#app .chip,#dlg .btn{font:400 20px/1 var(--sans);letter-spacing:.02em}
+#app .tab{font-size:21px}#app .btn.primary{font:400 22px/1 var(--sans);letter-spacing:.03em;text-transform:none}
+#app textarea,#app #hexIn{font:400 19px var(--sans)}
+#app .msg,#app .hint,#app .side-msg,#app .mic-msg,#app .state span,#app #status,#app .piece-foot,#app .bright,#dlg .dlg-body p{font-size:18px}#dlg .dlg-body p{font-size:22px}
+#app .cell{font-size:16px}
+/* classic fine-line icons */
+#app .tool svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:1.15;stroke-linecap:butt;stroke-linejoin:miter}
+#app .mic svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:1.15;stroke-linecap:butt;stroke-linejoin:miter}
+/* formal geometry: hairlines and near-square corners */
+#app .btn,#app .tool,#app .chip,#dlg .btn,#app .mic,#app .state,#app .cell,#app .menubar,#app textarea,#app #hexIn{border-radius:2px}
+#app .tools,#app #finish,#app .piece,#dlg .dialog,#app .wheel-pop{border-radius:4px}#app fieldset,#app fieldset:last-of-type{border-radius:3px}
+#app .frame,#app .finish-left img,#app #resultImg,#app .pair img{border-radius:2px}
+#app .tab{border:0;border-bottom:1px solid transparent;border-radius:0;padding:5px 18px}
+#app .tab:hover{transform:none;border-bottom-color:var(--line2)}#app .tab.active{--fill:transparent;border-bottom-color:#fff;box-shadow:none}
