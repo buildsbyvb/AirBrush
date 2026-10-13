@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=19" />
+  <link rel="stylesheet" href="style.css?v=20" />
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
 </head>
 <body id="top">
@@ -101,8 +101,8 @@
           <div class="grp end"><div class="grp-body"><div id="drawState" class="state on" role="status"><i></i><span id="drawStateText">Drawing active</span></div>
             <button id="doneBtn" class="btn primary wide">Done drawing</button>
             <button id="resumeBtn" class="btn wide" disabled>Resume drawing</button></div><span class="grp-name">Drawing</span></div>
+          <p id="sideMsg" class="side-msg" aria-live="polite"></p>
         </div>
-        <p id="sideMsg" class="side-msg" aria-live="polite"></p>
 
         <div class="main-col">
           <main class="stage">
@@ -193,14 +193,14 @@
 <p class="note">Any other hand shape, such as a fist or three fingers, is ignored and the app simply shows <strong>Ready</strong>. Only the two gestures above ever change the canvas.</p>
 
 <h3>3. Your first drawing, step by step</h3>
-<ol><li>Choose a colour and a size from the ribbon at the top (see the next section).</li>
+<ol><li>Choose a colour and a size from the toolbar on the right (see the next section).</li>
 <li>Raise your hand, then show your palm. The app pauses, so nothing is drawn while you get ready.</li>
 <li>Fold all fingers except your index finger. Move it slowly and the line appears on the Canvas box. The webcam works like a mirror, so move your hand the way you would in front of a mirror.</li>
 <li>To move to a new spot without drawing, show your palm, reposition, then raise your index finger again.</li>
 <li>To fix a mistake, raise your index and middle finger together and move over it, or press <strong>Undo</strong>.</li>
 <li>When you are happy, press <strong>Done drawing</strong>.</li></ol>
 
-<h3>4. The ribbon, control by control</h3>
+<h3>4. The toolbar, control by control</h3>
 <dl>
 <dt>Undo</dt><dd>Removes your most recent stroke. Press it again to remove the one before.</dd>
 <dt>Clear</dt><dd>Wipes the whole canvas after you confirm. This cannot be undone.</dd>
@@ -250,7 +250,7 @@
 
   
 
-  <script src="script.js?v=19"></script>
+  <script src="script.js?v=20"></script>
 </body>
 </html>
 
