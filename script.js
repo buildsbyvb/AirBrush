@@ -266,14 +266,6 @@ const HAND_LINES = [
   [0, 17],                                   // outer edge of the palm
 ];
 const FINGERTIPS = new Set([4, 8, 12, 16, 20]);
-// Painted look: palette taken from the background video (ink black, amber, violet, lavender, cream)
-const SKEL = {
-  halo: "rgba(11, 9, 14, 0.92)", streak: "rgba(244, 232, 210, 0.55)",
-  palm: "#b8abea", joint: "#cdc3ea", jointEdge: "#3a2f66", tip: "#ffb347", tipEdge: "#b8431f",
-  finger: ["#ffbf5c", "#f5a444", "#ee9338", "#e5842f", "#d97a45"],   // thumb, index, middle, ring, pinky
-};
-// fixed pseudo-random wobble so the brush edges look hand-made but never flicker from frame to frame
-const JIT = Array.from({ length: 97 }, (_, i) => (Math.sin((i + 1) * 12.9898) * 43758.5453) % 1);
 
 function clearHand() { handCtx.clearRect(0, 0, W, H); }
 
@@ -287,66 +279,40 @@ function toCanvas(p) {
   return { x: W - x, y };
 }
 
-// one bone = a tapered, slightly uneven brush stroke
-function brushPath(c, a, b, w0, w1, grow, seed) {
-  const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d, N = 7;
-  const L = [], R = [];
-  for (let k = 0; k <= N; k++) {
-    const t = k / N, cx = a.x + dx * t, cy = a.y + dy * t;
-    const hl = ((w0 + (w1 - w0) * t) / 2 + grow) * (1 + 0.14 * JIT[(seed * 7 + k) % 97]);
-    const hr = ((w0 + (w1 - w0) * t) / 2 + grow) * (1 + 0.14 * JIT[(seed * 5 + k + 3) % 97]);
-    L.push({ x: cx + nx * hl, y: cy + ny * hl }); R.push({ x: cx - nx * hr, y: cy - ny * hr });
-  }
-  c.beginPath(); c.moveTo(L[0].x, L[0].y);
-  L.forEach((p) => c.lineTo(p.x, p.y));
-  for (let k = N; k >= 0; k--) c.lineTo(R[k].x, R[k].y);
-  c.closePath();
-}
-// one joint = a small irregular blot of pigment
-function blotPath(c, p, r, seed) {
-  const n = 10; c.beginPath();
-  for (let k = 0; k < n; k++) {
-    const ang = (k / n) * Math.PI * 2, rr = r * (1 + 0.18 * JIT[(seed * 3 + k) % 97]);
-    const x = p.x + Math.cos(ang) * rr, y = p.y + Math.sin(ang) * rr;
-    k ? c.lineTo(x, y) : c.moveTo(x, y);
-  }
-  c.closePath();
-}
-
+// Tech look: hairline skeleton with glow, ring joints, reticles on the fingertips, a faint palm mesh and a slow scanning ring
+const FINGER_COL = ["#ff7eb3", "#ffb86b", "#ffe66d", "#7ee8d1", "#8ab4ff"];   // thumb, index, middle, ring, pinky
+const fingerOf = (i) => Math.min(4, Math.floor((i - 1) / 4));
 function drawHand(lm) {
   const c = handCtx;
   c.clearRect(0, 0, W, H);
   const P = lm.map(toCanvas);   // same mirror and crop as the video, one point per landmark
   const hand = P.length > 9 ? Math.hypot(P[0].x - P[9].x, P[0].y - P[9].y) : 100;
-  const s = Math.min(1.3, Math.max(0.75, hand / 115));   // sizes follow hand size, kept modest
-  c.save();
-  c.lineCap = "round"; c.lineJoin = "round"; c.globalAlpha = 1;
-  const bones = HAND_LINES.map(([a, b], i) => {
-    const finger = b === a + 1 || a === 0 && b === 1;
-    const k = finger ? (b - 1) % 4 : 0, f = Math.min(4, Math.max(0, Math.floor((b - 1) / 4)));
-    const w0 = (finger ? 12.5 - k * 1.7 : 10) * s;
-    return { a: P[a], b: P[b], w0, w1: finger ? w0 - 1.4 * s : w0, col: finger ? SKEL.finger[f] : SKEL.palm, seed: i + 1 };
-  }).filter((q) => q.a && q.b);
-  // 1. dark ink under-stroke so the paint stays readable on any camera background
-  c.fillStyle = SKEL.halo;
-  bones.forEach((q) => { brushPath(c, q.a, q.b, q.w0, q.w1, 2 * s, q.seed); c.fill(); });
-  // 2. pigment, then a few thin bristle streaks of lighter paint along each stroke
-  bones.forEach((q) => {
-    brushPath(c, q.a, q.b, q.w0, q.w1, 0, q.seed); c.fillStyle = q.col; c.fill();
-    const dx = q.b.x - q.a.x, dy = q.b.y - q.a.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
-    c.strokeStyle = SKEL.streak; c.lineWidth = 1.1 * s;
-    [-0.24, 0.22].forEach((o, j) => {
-      const off = o * q.w0, g = 0.12 + 0.1 * Math.abs(JIT[(q.seed * 11 + j) % 97]);
-      c.beginPath(); c.moveTo(q.a.x + dx * g + nx * off, q.a.y + dy * g + ny * off); c.lineTo(q.b.x - dx * g + nx * off, q.b.y - dy * g + ny * off); c.stroke();
-    });
+  const s = Math.min(1.3, Math.max(0.75, hand / 115));
+  c.save(); c.lineCap = "round"; c.lineJoin = "round";
+  if (P.length > 17) {   // palm mesh, fingertip web and scanning ring
+    c.beginPath(); [0, 1, 5, 9, 13, 17].forEach((i, k) => (k ? c.lineTo(P[i].x, P[i].y) : c.moveTo(P[i].x, P[i].y))); c.closePath();
+    c.fillStyle = "rgba(126, 232, 209, 0.05)"; c.fill();
+    c.strokeStyle = "rgba(255,255,255,0.2)"; c.lineWidth = 0.6; c.setLineDash([2, 3]); c.stroke();
+    [[4, 8], [8, 12], [12, 16], [16, 20]].forEach(([a, b]) => { c.beginPath(); c.moveTo(P[a].x, P[a].y); c.lineTo(P[b].x, P[b].y); c.stroke(); });
+    c.strokeStyle = "rgba(255,255,255,0.3)"; c.lineWidth = 0.7; c.setLineDash([7 * s, 6 * s]); c.lineDashOffset = -performance.now() / 45;
+    c.beginPath(); c.arc((P[0].x + P[9].x) / 2, (P[0].y + P[9].y) / 2, hand * 0.8, 0, Math.PI * 2); c.stroke();
+    c.setLineDash([]);
+  }
+  HAND_LINES.forEach(([a, b]) => {   // hairline bones with a soft glow
+    if (!P[a] || !P[b]) return;
+    const fin = b === a + 1 || (a === 0 && b === 1), col = fin ? FINGER_COL[fingerOf(b)] : "rgba(255,255,255,0.75)";
+    c.strokeStyle = col; c.shadowColor = fin ? col : "#fff"; c.shadowBlur = 6; c.lineWidth = 0.9;
+    c.beginPath(); c.moveTo(P[a].x, P[a].y); c.lineTo(P[b].x, P[b].y); c.stroke();
   });
-  // 3. one pigment blot for every landmark the model returns
-  P.forEach((p, i) => {
-    const tip = FINGERTIPS.has(i), r = (i === 0 ? 6.4 : tip ? 5.6 : 4.4) * s;
-    blotPath(c, p, r + 1.8 * s, i + 1); c.fillStyle = SKEL.halo; c.fill();
-    blotPath(c, p, r, i + 1); c.fillStyle = tip ? SKEL.tip : SKEL.joint; c.fill();
-    c.lineWidth = 1.4; c.strokeStyle = tip ? SKEL.tipEdge : SKEL.jointEdge; c.stroke();
+  P.forEach((p, i) => {   // one ring for every landmark the model returns; fingertips get a reticle
+    const tip = FINGERTIPS.has(i), col = i ? FINGER_COL[fingerOf(i)] : "#ffffff", r = (tip ? 4.4 : 2.4) * s;
+    c.shadowColor = col; c.shadowBlur = 5; c.strokeStyle = col; c.lineWidth = 0.9;
+    c.beginPath(); c.arc(p.x, p.y, r, 0, Math.PI * 2); c.fillStyle = "rgba(0,0,0,0.55)"; c.fill(); c.stroke();
+    c.beginPath(); c.arc(p.x, p.y, 0.9, 0, Math.PI * 2); c.fillStyle = col; c.fill();
+    if (tip) { c.lineWidth = 0.8; c.beginPath(); [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([x, y]) => { c.moveTo(p.x + x * (r + 2), p.y + y * (r + 2)); c.lineTo(p.x + x * (r + 6 * s), p.y + y * (r + 6 * s)); }); c.stroke(); }
   });
+  c.shadowBlur = 0; c.font = "9px ui-monospace, Menlo, Consolas, monospace"; c.fillStyle = "rgba(255,255,255,0.8)";
+  if (P[8]) c.fillText("X" + (lm[8].x * 100).toFixed(0) + " Y" + (lm[8].y * 100).toFixed(0), P[8].x + 12, P[8].y - 10);
   c.restore();
 }
 
@@ -492,100 +458,49 @@ async function startApp() {
   loop();
 }
 
-// ---------- ambient background: sparse silver glitter + pastel brush strokes that paint themselves, then vanish ----------
+// ---------- ambient background: one or two bold brush strokes at a time are painted across the black, then vanish ----------
 (function () {
   const cv = $("bg"), ctx = cv.getContext("2d");
-  const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const HUES = [345, 200, 275, 150, 45, 320];   // rose, sky, lilac, mint, butter, pink (all pastel)
-  const LIFE = 3000;                            // ms a painted point stays before it has fully faded
-  let dpr = 1, w = 0, h = 0, stars = [], strokes = [], nextSpawn = 0, prev = performance.now();
-  function fit() {
-    dpr = Math.min(window.devicePixelRatio || 1, 1.5); w = innerWidth; h = innerHeight; cv.width = w * dpr; cv.height = h * dpr;
-    stars = Array.from({ length: Math.round((w * h) / 30000) }, () => ({ x: Math.random() * w, y: Math.random() * h, r: 0.4 + Math.random() * 1.1, ph: Math.random() * 6.28, sp: 0.4 + Math.random() * 1.4, big: Math.random() < 0.12 }));
-  }
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;   // calm: plain black
+  const HUES = [350, 18, 42, 168, 214, 292];    // crimson, vermilion, gold, teal, cobalt, violet: rich, not pastel
+  const LIFE = 3600, N = 11, CHUNK = 5;
+  let dpr = 1, w = 0, h = 0, strokes = [], nextSpawn = 500, prev = performance.now();
+  function fit() { dpr = Math.min(window.devicePixelRatio || 1, 1.5); w = innerWidth; h = innerHeight; cv.width = w * dpr; cv.height = h * dpr; }
   fit(); addEventListener("resize", fit);
   function spawn(now) {
-    strokes.push({ x: Math.random() * w, y: Math.random() * h, a: Math.random() * 6.28, ph: Math.random() * 6.28, fr: 0.5 + Math.random() * 1.1, sp: 150 + Math.random() * 150, born: now, dur: 2200 + Math.random() * 2200, wd: 3 + Math.random() * 7, hue: HUES[(Math.random() * HUES.length) | 0], pts: [],
-      hairs: Array.from({ length: 2 }, () => ({ o: Math.random() * 2 - 1, w: 0.5 + Math.random() * 0.8, a: 0.2 + Math.random() * 0.25 })) });
+    const x = w * (0.1 + Math.random() * 0.8), y = h * (0.1 + Math.random() * 0.8);
+    strokes.push({ x, y, a: Math.atan2(h / 2 - y, w / 2 - x) + (Math.random() - 0.5) * 2, ph: Math.random() * 6.28, sp: 520 + Math.random() * 300, born: now, dur: 1500 + Math.random() * 900,
+      W: 18 + Math.random() * 16, hue: HUES[(Math.random() * HUES.length) | 0], shift: (Math.random() < 0.5 ? -1 : 1) * (25 + Math.random() * 35), pts: [],
+      br: Array.from({ length: N }, (_, j) => ({ o: (j / (N - 1)) * 2 - 1 + (Math.random() - 0.5) * 0.08, lw: 3 + Math.random() * 3.2, al: 0.5 + Math.random() * 0.5, dl: (Math.random() - 0.5) * 16, dry: 0.55 + Math.random() * 0.45 })) });
   }
   function frame(now) {
     const dt = Math.min(now - prev, 50) / 1000; prev = now;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = ctx.strokeStyle = "#eef1fa"; ctx.lineWidth = 0.6;
-    for (const s of stars) {                      // glitter: slow twinkle, a few get a tiny cross-shaped glint
-      const t = calm ? 0.8 : 0.5 + 0.5 * Math.sin((now / 1000) * s.sp + s.ph), a = 0.1 + 0.9 * t * t;
-      ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.283); ctx.fill();
-      if (s.big && a > 0.55) { const L = s.r * 5 * a; ctx.beginPath(); ctx.moveTo(s.x - L, s.y); ctx.lineTo(s.x + L, s.y); ctx.moveTo(s.x, s.y - L); ctx.lineTo(s.x, s.y + L); ctx.stroke(); }
-    }
-    if (!calm) {
-      if (now > nextSpawn && strokes.length < 4) { spawn(now); nextSpawn = now + 800 + Math.random() * 1200; }
-      ctx.lineCap = ctx.lineJoin = "round";
-      strokes = strokes.filter((s) => { s.pts = s.pts.filter((p) => now - p.t < LIFE); return s.pts.length > 0 || now - s.born < s.dur; });
-      for (const s of strokes) {
-        if (now - s.born < s.dur) {               // the brush is still painting: steer smoothly, ease in and out
-          const env = Math.sin(Math.PI * ((now - s.born) / s.dur)), v = s.sp * (0.3 + 0.7 * env) * dt, last = s.pts[s.pts.length - 1];
-          s.a += Math.sin((now / 1000) * s.fr + s.ph) * 1.6 * dt; s.x += Math.cos(s.a) * v; s.y += Math.sin(s.a) * v;
-          if (!last || Math.hypot(s.x - last.x, s.y - last.y) > 4) s.pts.push({ x: s.x, y: s.y, t: now, wd: s.wd * (0.3 + 0.7 * env) });
-        }
-        ctx.strokeStyle = `hsl(${s.hue}, 85%, 84%)`;
-        for (let i = 1; i < s.pts.length; i++) {
-          const p = s.pts[i - 1], q = s.pts[i], f = Math.pow(1 - (now - q.t) / LIFE, 1.3), dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
-          ctx.globalAlpha = 0.22 * f; ctx.lineWidth = q.wd; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke();
-          for (const hr of s.hairs) { const o = hr.o * q.wd * 0.6; ctx.globalAlpha = hr.a * f; ctx.lineWidth = hr.w; ctx.beginPath(); ctx.moveTo(p.x + nx * o, p.y + ny * o); ctx.lineTo(q.x + nx * o, q.y + ny * o); ctx.stroke(); }
-        }
+    if (now > nextSpawn && strokes.length < 2) { spawn(now); nextSpawn = now + 1200 + Math.random() * 2200; }
+    ctx.lineCap = ctx.lineJoin = "round";
+    strokes = strokes.filter((s) => { s.pts = s.pts.filter((p) => now - p.t < LIFE); return s.pts.length > 0 || now - s.born < s.dur; });
+    for (const s of strokes) {
+      if (now - s.born < s.dur) {   // the brush is still painting: gentle S-curve, thick in the middle, pointed at both ends
+        const k = (now - s.born) / s.dur, env = Math.pow(Math.sin(Math.PI * k), 0.7), v = s.sp * (0.35 + 0.65 * env) * dt;
+        s.a += Math.sin((now / 1000) * 1.1 + s.ph) * 1.2 * dt; s.x += Math.cos(s.a) * v; s.y += Math.sin(s.a) * v;
+        s.pts.push({ x: s.x, y: s.y, t: now, k, nx: -Math.sin(s.a), ny: Math.cos(s.a), w: s.W * Math.max(0.12, env),
+          b: s.br.map((r) => r.al * (k > r.dry ? (Math.random() < 0.5 ? 0.1 : 0.85) : 1)) });   // bristles run dry near the end
+      }
+      const pts = s.pts;
+      for (let i = 0; i + 1 < pts.length; i += CHUNK) {
+        const e = Math.min(i + CHUNK, pts.length - 1), m = pts[Math.min(i + 2, pts.length - 1)], f = Math.pow(Math.max(0, 1 - (now - m.t) / LIFE), 1.2);
+        if (f <= 0.01) continue;
+        const hue = s.hue + s.shift * m.k;
+        s.br.forEach((r, j) => {
+          const al = m.b[j] * f * 0.62; if (al < 0.02) return;
+          ctx.globalAlpha = al; ctx.lineWidth = r.lw; ctx.strokeStyle = `hsl(${hue}, 88%, ${52 + r.dl}%)`;
+          ctx.beginPath();
+          for (let q = i; q <= e; q++) { const p = pts[q], X = p.x + p.nx * r.o * p.w, Y = p.y + p.ny * r.o * p.w; q === i ? ctx.moveTo(X, Y) : ctx.lineTo(X, Y); }
+          ctx.stroke();
+        });
       }
     }
     ctx.globalAlpha = 1; requestAnimationFrame(frame);
-  }
-  requestAnimationFrame(frame);
-})();
-
-// ---------- front page: light paint strokes that follow the mouse and fade away ----------
-(function () {
-  const cv = $("fx"), ctx = cv.getContext("2d"), landing = $("landing");
-  const HUES = [345, 200, 275, 150];             // pastel rose, sky, lilac, mint
-  const LIFE = 1700;                           // ms until a stroke has fully faded
-  const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let strokes = [], cur = null, target = null, sm = null, n = 0, dpr = 1;
-  function fit() { dpr = Math.min(window.devicePixelRatio || 1, 2); cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; }
-  fit(); addEventListener("resize", fit);
-  function add(x, y, now) {
-    if (!cur || now - cur.last > 160) {
-      cur = { pts: [], last: now, hue: HUES[n++ % HUES.length], hairs: Array.from({ length: 3 }, () => ({ o: Math.random() * 2 - 1, w: 0.4 + Math.random() * 0.6, a: 0.12 + Math.random() * 0.16 })) };
-      strokes.push(cur);
-    }
-    const p = cur.pts[cur.pts.length - 1];
-    if (p && Math.hypot(x - p.x, y - p.y) < 3) return;
-    cur.pts.push({ x, y, t: now }); cur.last = now;
-  }
-  if (!calm) {   // mouse and pen only: touch screens keep their normal scrolling and taps
-    landing.addEventListener("pointermove", (e) => { if (e.pointerType === "touch") return; target = { x: e.clientX, y: e.clientY }; if (!sm) sm = { ...target }; }, { passive: true });
-    landing.addEventListener("pointerleave", () => { target = null; sm = null; cur = null; });
-  }
-  const t0 = performance.now(), SWEEP = 2400;
-  function frame(now) {
-    if (landing.hidden) return;
-    if (!calm && now - t0 < SWEEP) { const k = (now - t0) / SWEEP; add(innerWidth * (0.08 + 0.84 * k), innerHeight * (0.52 + Math.sin(k * 7) * 0.13 - k * 0.04), now); }
-    if (target && sm) { sm.x += (target.x - sm.x) * 0.35; sm.y += (target.y - sm.y) * 0.35; add(sm.x, sm.y, now); }   // eased, so the line is smooth
-    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.lineCap = "round"; ctx.lineJoin = "round";
-    strokes = strokes.filter((s) => { s.pts = s.pts.filter((p) => now - p.t < LIFE); return s.pts.length > 0; });
-    if (cur && !strokes.includes(cur)) cur = null;
-    for (const s of strokes) {
-      for (let i = 1; i < s.pts.length; i++) {
-        const a = s.pts[i - 1], b = s.pts[i], f = Math.pow(1 - (now - b.t) / LIFE, 1.4);   // 1 = fresh, 0 = gone
-        const half = 4.5 * (0.3 + 0.7 * f), dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
-        ctx.strokeStyle = `hsl(${(s.hue + i * 0.6) % 360}, 80%, 84%)`;
-        ctx.globalAlpha = 0.12 * f; ctx.lineWidth = half * 1.4;
-        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-        for (const h of s.hairs) {
-          ctx.globalAlpha = h.a * f; ctx.lineWidth = h.w;
-          ctx.beginPath(); ctx.moveTo(a.x + nx * h.o * half, a.y + ny * h.o * half); ctx.lineTo(b.x + nx * h.o * half, b.y + ny * h.o * half); ctx.stroke();
-        }
-      }
-    }
-    ctx.globalAlpha = 1;
-    requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 })();

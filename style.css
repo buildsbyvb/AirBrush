@@ -17,23 +17,13 @@ h3 small{font-weight:400;color:var(--mute);margin-left:6px;font-size:14px}
 .tools,#finish,.piece,.dialog{background:var(--glass);border:1px solid var(--line);border-radius:22px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
 
 /* ---- buttons: pills ---- */
-.btn,.tool,.tab,.chip{font:500 15px var(--sans);color:var(--ink);background:var(--glass);border:1px solid var(--line);border-radius:999px;padding:8px 18px;min-height:40px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;transition:transform .18s,background .18s,border-color .18s,box-shadow .18s}
-.btn:hover,.tool:hover,.chip:hover{background:rgba(255,255,255,.11);border-color:var(--line2);transform:translateY(-1px)}
-.btn:active,.tool:active,.chip:active{transform:translateY(0) scale(.98)}
-.btn.primary{border:0;color:#12081f;font-weight:600;font-size:17px;padding:13px 32px;background:var(--grad);background-size:160% 100%;box-shadow:0 10px 34px rgba(255,95,162,.35);animation:sheen 6s ease-in-out infinite alternate}
-.btn.primary:hover{box-shadow:0 14px 44px rgba(255,95,162,.55);transform:translateY(-2px) scale(1.02)}
-@keyframes sheen{to{background-position:100% 0}}
 .btn.wide{width:100%}.btn:disabled{opacity:.45;cursor:not-allowed}
-.tool{flex:1}.tool.active,.chip.active{background:rgba(139,92,246,.28);border-color:var(--v);color:#fff;box-shadow:0 0 0 3px rgba(139,92,246,.18)}
 .tool svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .mic svg{width:18px;height:18px}
 :focus-visible{outline:2px solid var(--c);outline-offset:3px}
-.tab{min-height:0;padding:6px 18px;color:var(--mute);background:none;border-color:transparent}
-.tab:hover{color:#fff;transform:none}.tab.active{color:#fff;background:rgba(255,255,255,.1);border-color:var(--line)}
 
 /* ---- front page ---- */
 #landing{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:48px;padding:110px 24px 40px;text-align:center;overflow:hidden}
-#fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .welcome{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:22px;max-width:880px}
 .welcome h1{font:700 clamp(46px,9vw,110px)/.98 var(--sans);letter-spacing:-.045em}
 
@@ -118,47 +108,58 @@ textarea:focus{outline:none;border-color:var(--p);box-shadow:0 0 0 3px rgba(255,
 
 @media(max-width:800px){.workspace{flex-direction:column;padding:16px}.tools{width:100%}.box{max-width:none}.topbar,.statusbar{padding-left:16px;padding-right:16px}#finish{margin:6px 12px 44px;padding:18px}.pair{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){*,.statusbar::before{animation:none!important;transition:none!important}}
-@media(hover:hover) and (pointer:fine){#landing,#landing *{cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><path d='M29 3L14.5 17.5' stroke='%23000' stroke-width='5' stroke-linecap='round'/><path d='M29 3L14.5 17.5' stroke='%23fff' stroke-width='3' stroke-linecap='round'/><circle cx='11' cy='21' r='6' fill='%23ff5fa2' stroke='%23000'/></svg>") 4 28,auto}}
 
-/* ================= v13: black sky, white brush lettering, translucent boxes ================= */
-:root{--bg:#020204;--ink:#fff;--mute:rgba(255,255,255,.82);--glass:rgba(255,255,255,.035);--line:rgba(255,255,255,.15);--line2:rgba(255,255,255,.3);
---sans:"Caveat Brush","Segoe Script",cursive;--brush:"Yellowtail","Kaushan Script","Brush Script MT",cursive;
---pastel:linear-gradient(100deg,rgba(255,196,222,.3),rgba(196,214,255,.3) 50%,rgba(204,255,232,.3))}
-body{font-size:20px;letter-spacing:.02em;background:#020204;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+
+/* ================= v14: black stage, ombre lettering, classy serif + clean sans, MS Paint brush cursor ================= */
+:root{--bg:#020204;--ink:#fff;--mute:rgba(255,255,255,.8);--line:rgba(255,255,255,.13);--line2:rgba(255,255,255,.28);
+--sans:"Jost","Helvetica Neue",Arial,sans-serif;--serif:"Playfair Display",Georgia,serif;
+--ombre:linear-gradient(100deg,#ff7eb3 0%,#ffb86b 30%,#ffe66d 52%,#7ee8d1 76%,#8ab4ff 100%);
+--cur:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><path d='M28.5 3.5L17 15' stroke='%23161616' stroke-width='6.5' stroke-linecap='round'/><path d='M28.5 3.5L17 15' stroke='%23f0a95a' stroke-width='4.2' stroke-linecap='round'/><path d='M17.6 14.4L13.4 18.6' stroke='%23161616' stroke-width='7.5'/><path d='M17.6 14.4L13.4 18.6' stroke='%23dfe2ec' stroke-width='5.4'/><path d='M14 18C17 20 15 24 11 26.5C8 28.5 5 29 3 29.5C3.5 27 4.5 24 6.5 21.5C8.5 19.2 11.5 17.5 14 18Z' fill='%233b82f6' stroke='%230b1b4a' stroke-width='1'/></svg>") 3 29,auto}
+*,*::before,*::after{cursor:var(--cur)!important}
+textarea,#hexIn{cursor:text!important}
+body{font:300 18px/1.5 var(--sans);letter-spacing:.02em;background:#020204;text-shadow:none}
 #bg{position:fixed;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none}
-h1,h2,.brand,legend,.box-title,.pair figcaption{font-family:var(--brush);font-weight:400;letter-spacing:.01em;color:#fff}
-h2{font-size:clamp(38px,4.5vw,56px);filter:url(#drybrush)}
-h3{font:400 23px var(--sans)}h3 small{font-size:17px}
-.brand{font-size:42px;filter:url(#rough-text);padding:0 8px}
-.box-title{font-size:30px;filter:url(#rough-text)}.pair figcaption{font-size:26px}
 
-/* front page: only the name and Get Started */
-#landing{gap:0;padding:24px}.welcome{gap:30px}
-.welcome h1{font:400 clamp(90px,19vw,250px)/1.05 var(--brush);letter-spacing:0;color:#fff;padding:0 .1em;filter:url(#drybrush) drop-shadow(0 0 36px rgba(255,255,255,.14))}
+/* ombre lettering */
+h1,h2,h3,legend,.brand,.box-title,.pair figcaption,.msg,.hint,.side-msg,.mic-msg,.state span,#status,.cell,.piece-foot,.bright,.dlg-body p,h3 small{background-image:var(--ombre);background-clip:text;-webkit-background-clip:text;color:transparent;-webkit-text-fill-color:transparent;text-shadow:none}
+h1,h2,h3,legend,.brand,.box-title,.pair figcaption{font-family:var(--serif);font-style:italic;font-weight:500;letter-spacing:0}
+h2{font-size:clamp(34px,4vw,48px);width:fit-content}h3{font-size:21px;width:fit-content}h3 small{font:300 15px var(--sans);font-style:normal}
+.brand{font-size:36px;font-weight:700;padding:0 6px}.box-title{font-size:26px}.pair figcaption{font-size:22px;width:fit-content}
+.msg,.hint,.side-msg,.mic-msg{width:fit-content;font-size:16px}
 
-/* translucent everything */
-.tools,#finish,.piece{background:rgba(255,255,255,.022);border:1px solid var(--line);border-radius:28px;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
-.dialog{background:rgba(8,8,12,.6)}
-.wheel-pop{background:rgba(10,10,16,.82)}
-.menubar{background:rgba(255,255,255,.03)}
-.statusbar{background:rgba(2,2,4,.3)}
-.btn,.tool,.tab,.chip{font:400 19px var(--sans);letter-spacing:.03em;color:#fff;background:rgba(255,255,255,.035);border-color:var(--line)}
-.btn:hover,.tool:hover,.chip:hover{background:rgba(255,255,255,.1)}
-.tool.active,.chip.active{background:rgba(255,196,222,.16);border-color:rgba(255,210,230,.7);box-shadow:0 0 14px rgba(255,200,230,.18)}
-.btn.primary{background:var(--pastel);border:1px solid rgba(255,255,255,.4);color:#fff;font-size:23px;padding:7px 30px;animation:none;box-shadow:0 0 30px rgba(255,200,230,.16),inset 0 0 18px rgba(255,255,255,.06)}
-.btn.primary:hover{background:linear-gradient(100deg,rgba(255,196,222,.46),rgba(196,214,255,.46),rgba(204,255,232,.46));box-shadow:0 0 46px rgba(255,200,230,.35)}
-.welcome .btn.primary{font-size:32px;padding:10px 52px}
-.tab{font-size:21px}.tab.active{background:rgba(255,255,255,.1)}
+/* front page */
+#landing{gap:0;padding:24px}.welcome{gap:36px}
+.welcome h1{font:italic 700 clamp(76px,15vw,200px)/1.1 var(--serif);letter-spacing:-.01em;padding:0 .08em .06em;filter:drop-shadow(0 0 44px rgba(255,126,179,.2))}
 
-/* tool panel: separate translucent boxes inside one main box */
+/* buttons: hairline pills, ombre text */
+.btn,.tool,.tab,.chip{--fill:rgba(255,255,255,.04);font:400 16px var(--sans);letter-spacing:.07em;border:1px solid var(--line);padding:6px 16px;min-height:34px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;color:transparent;-webkit-text-fill-color:transparent;background-color:transparent;background-image:var(--ombre),linear-gradient(var(--fill),var(--fill));background-clip:text,padding-box;-webkit-background-clip:text,padding-box;transition:transform .18s,border-color .18s,box-shadow .18s}
+.btn{border-radius:999px}.tool,.chip{border-radius:12px}.tab{border-radius:999px;min-height:0;padding:5px 20px;border-color:transparent;font-size:17px}
+.btn:hover,.tool:hover,.chip:hover,.tab:hover{--fill:rgba(255,255,255,.1);border-color:var(--line2);transform:translateY(-1px)}
+.btn:active,.tool:active,.chip:active{transform:scale(.98)}
+.tool{flex:1}.tool.active,.chip.active,.tab.active{--fill:rgba(255,126,179,.13);border-color:rgba(255,184,107,.65);box-shadow:0 0 16px rgba(255,150,150,.14)}
+.btn.primary{position:relative;--fill:rgba(255,255,255,.05);border:0;font:400 20px var(--sans);letter-spacing:.2em;text-transform:uppercase;padding:15px 46px;box-shadow:0 0 44px rgba(255,126,179,.16)}
+.btn.primary:hover{--fill:rgba(255,255,255,.12);box-shadow:0 0 60px rgba(255,184,107,.3);transform:translateY(-2px)}
+.welcome .btn.primary{font-size:22px;padding:17px 56px}
+.btn.primary::before,.tools::before,#finish::before,.piece::before,.dialog::before,.boxes .box .frame::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:1.2px;background:var(--ombre);border:0;box-shadow:none;pointer-events:none;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+.tools::before,#finish::before,.piece::before,.dialog::before{opacity:.5}
+.tools,#finish,.piece,.dialog{position:relative}
+
+/* translucent boxes: one main box holding separate boxes */
+.tools,#finish,.piece{background:rgba(255,255,255,.022);border:0;border-radius:26px;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+.dialog{background:rgba(8,8,12,.62);border:0}.wheel-pop{background:rgba(10,10,16,.85)}
+.menubar{background:rgba(255,255,255,.03)}.statusbar{background:rgba(2,2,4,.3)}
 .tools{gap:12px;padding:14px;width:276px}
-fieldset,fieldset:last-of-type{border:1px solid var(--line);border-radius:20px;padding:6px 12px 12px;background:rgba(255,255,255,.03);gap:8px}
-legend{font-size:26px;text-transform:none;letter-spacing:0;padding:0 8px;filter:url(#rough-text)}
+fieldset,fieldset:last-of-type{border:1px solid var(--line);border-radius:18px;padding:4px 12px 12px;background:rgba(255,255,255,.03);gap:8px}
+legend{font-size:20px;text-transform:none;padding:0 8px}
+.tool svg,.mic svg{width:14px;height:14px;fill:none;stroke:url(#omb);stroke-width:1.4}.mic svg{width:16px;height:16px}.mic{flex:0 0 46px}
+.tool,.chip{min-height:34px}.toolgrid .tool{padding:4px 6px}
 
-/* smaller, fun icons and swatches */
-.tool,.chip{min-height:34px;padding:4px 14px}.toolgrid .tool{padding:4px 6px}
-.tool svg{width:14px;height:14px;stroke-width:1.5}.mic svg{width:16px;height:16px}.mic{flex:0 0 46px}
-.swatches{grid-template-columns:repeat(auto-fill,24px);justify-content:space-between;gap:10px}.swatch{width:24px}
-.wheel-dot{width:15px;height:15px}
-.state,.state.on,.state.off{color:#fff;font-size:18px}
-#status,.cell,.bright{color:#fff}textarea,#hexIn{font-size:20px;color:#fff}
+/* square colour swatches */
+.swatches{grid-template-columns:repeat(auto-fill,26px);justify-content:space-between;gap:10px}
+.swatch{width:26px;aspect-ratio:1;border-radius:3px;background-image:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}
+.swatch.active{box-shadow:0 0 0 2px #020204,0 0 0 3.5px #fff}
+.wheel-dot{width:15px;height:15px;border-radius:3px}
+.state,.state.on,.state.off{font-size:16px}
+.dlg-icon{color:#ffb86b;border-color:#ffb86b}
+.box-title::before{background:var(--ombre)!important;box-shadow:none!important}
+textarea,#hexIn{font:300 18px var(--sans);color:#ffe9f2}textarea::placeholder{color:rgba(255,255,255,.38)}

@@ -8,5 +8,5 @@ Draw in the air with your hand (webcam + MediaPipe Hands), then turn your drawin
 - Art gallery keeps the drawings and generated images you add, side by side, in your browser
 - AI images use free Cloudflare Workers AI (fast), with the free AI Horde service as an automatic backup
 
-## Look & feel (v13)
-Black sky with sparse twinkling silver glitter and pastel brush strokes that paint themselves and vanish (canvas `#bg`, no video). White brush lettering (Yellowtail + Caveat Brush), translucent glass boxes, front page shows only the name and Get Started. You can delete `background.webm`, `background.mp4` and `background-poster.jpg` from the repo.
+## Look & feel (v14)
+Black stage with one or two bold, bristly brush strokes at a time that paint themselves across the screen and vanish (canvas `#bg`, no video, no stars). Ombre lettering (Playfair Display italic + Jost), translucent boxes with ombre hairline borders, square colour swatches, hairline "tech HUD" hand skeleton, and an MS Paint style brush cursor. You can delete `background.webm`, `background.mp4` and `background-poster.jpg` from the repo.
