@@ -163,15 +163,7 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("wheelPo
 let sideTimer = null;
 function sideSay(t) { const el = $("sideMsg"); el.textContent = t; clearTimeout(sideTimer); sideTimer = setTimeout(() => (el.textContent = ""), 3500); }
 $("size").oninput = (e) => { size = +e.target.value; $("sizeVal").textContent = size; current = null; };   // applies to the very next stroke
-function setTool(t) {
-  tool = t; current = null;   // switching never touches the drawing, it only ends the stroke in progress
-  $("penBtn").classList.toggle("active", t === "pen");
-  $("eraserBtn").classList.toggle("active", t === "eraser");
-  $("penBtn").setAttribute("aria-pressed", t === "pen");
-  $("eraserBtn").setAttribute("aria-pressed", t === "eraser");
-}
-$("penBtn").onclick = () => setTool("pen");
-$("eraserBtn").onclick = () => setTool("eraser");
+function setTool(t) { tool = t; current = null; }   // the brush/eraser buttons are gone: drawing is the brush, the two-finger gesture is the eraser
 $("undoBtn").onclick = () => {
   if (!strokes.length) { sideSay("Nothing to undo."); return; }
   current = null; strokes.pop(); redraw();
@@ -475,7 +467,7 @@ async function startApp() {
     const dt = Math.min(now - prev, 50) / 1000; prev = now;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
     if (now > nextSpawn && strokes.length < 2) { spawn(now); nextSpawn = now + R(1500, 4500); }
-    const dim = document.body.classList.contains("in-app") ? 0.5 : 1;
+    const dim = document.body.classList.contains("in-app") || scrollY > h * 0.4 ? 0.5 : 1;
     ctx.lineCap = ctx.lineJoin = "round";
     strokes = strokes.filter((s) => { s.pts = s.pts.filter((p) => now - p.t < LIFE); return s.pts.length > 0 || now - s.born < s.dur; });
     for (const s of strokes) {
@@ -506,6 +498,7 @@ async function startApp() {
 
 $("startBtn").onclick = () => {
   $("landing").hidden = true;
+  $("site").hidden = true;
   $("app").hidden = false;
   document.body.classList.add("in-app");   // a little more shading behind the interface for readability
   startApp();
@@ -538,11 +531,15 @@ function showView(name) {
   currentView = name;
   $("drawView").hidden = name !== "draw";
   $("albumView").hidden = name !== "album";
+  $("tutorialView").hidden = name !== "tutorial";
+  $("tabTutorial").classList.toggle("active", name === "tutorial");
   $("tabDraw").classList.toggle("active", name === "draw");
   $("tabAlbum").classList.toggle("active", name === "album");
   if (name === "album") {
     setDrawing(false);
     renderGallery();
+  } else if (name === "tutorial") {
+    setDrawing(false);
   } else {
     setDrawing($("finish").hidden);   // stay paused while the preview is open
   }
@@ -550,6 +547,8 @@ function showView(name) {
 }
 $("tabDraw").onclick = () => showView("draw");
 $("tabAlbum").onclick = () => showView("album");
+$("tabTutorial").onclick = () => showView("tutorial");
+$("tutGo").onclick = () => showView("draw");
 
 // ---------- which colours were used (sent to the AI so it keeps them) ----------
 const COLOR_NAMES = {
@@ -979,3 +978,11 @@ async function renderGallery() {
   }
 }
 
+
+// ---------- front page: nav appears after the hero, buttons open the app ----------
+(function () {
+  const nav = $("sitenav");
+  const upd = () => nav.classList.toggle("show", scrollY > innerHeight * 0.6);
+  addEventListener("scroll", upd, { passive: true }); upd();
+  document.querySelectorAll("[data-start]").forEach((b) => (b.onclick = () => $("startBtn").click()));
+})();

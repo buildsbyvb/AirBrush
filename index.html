@@ -7,10 +7,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=17" />
+  <link rel="stylesheet" href="style.css?v=18" />
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
 </head>
-<body>
+<body id="top">
   <!-- ambient background: black sky, sparse glitter, pastel brush strokes (see script.js) -->
 <div id="paint" aria-hidden="true"></div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
@@ -25,6 +25,41 @@
 </div>
 </section>
 
+<div id="site">
+<nav id="sitenav" aria-label="Site"><a class="sn-brand" href="#top">AirBrush</a><div class="sn-links"><a href="#about">About</a><a href="#how">How it works</a><a href="#features">Features</a><a href="#tech">Technology</a><a href="#roadmap">Roadmap</a></div><button class="btn" data-start>Get started</button></nav>
+<section class="sec" id="about"><h2>About AirBrush</h2><div class="sec-body">
+<p>Digital art has long depended on hardware. Styluses and drawing tablets cost thousands of rupees, most drawing software must be installed before it can be used, and the way we create on a screen has barely changed since the mouse.</p>
+<p class="pull">What if your hand were the drawing tool?</p>
+<p>AirBrush is a browser-based creative platform that answers that question. It follows your hand through the webcam so that you can draw in mid-air, lets you describe your idea by voice or in writing, and turns your drawing into finished artwork with artificial intelligence. There is nothing to download, no special equipment to buy, and no cost to use.</p></div></section>
+<section class="sec" id="how"><h2>How it works</h2><div class="sec-body"><ol class="steps">
+<li><h3>I. Open your webcam</h3><p>The camera tracks 21 points on your hand in real time. Everything is processed in your browser, and no special hardware is required.</p></li>
+<li><h3>II. Draw in the air</h3><p>Raise one finger to paint, two fingers to erase, and an open palm to pause. Strokes appear on the canvas as you move.</p></li>
+<li><h3>III. Generate with AI</h3><p>Describe what you have drawn, in words or by voice, choose a style, and receive finished artwork. Save your drawing and the result together in your gallery.</p></li></ol></div></section>
+<section class="sec" id="features"><h2>Features</h2><div class="sec-body"><dl class="defs">
+<div><dt>Real-time hand tracking</dt><dd>A fine skeleton follows your hand on the webcam so you can see exactly what the camera sees.</dd></div>
+<div><dt>Gesture controls</dt><dd>Draw, erase and pause using only the position of your fingers.</dd></div>
+<div><dt>Colours and sizes</dt><dd>Fifteen ready-made colours, a custom colour wheel with a hex code field, and ten brush sizes.</dd></div>
+<div><dt>Voice or written description</dt><dd>Tell the AI what you drew by typing or speaking, and ask for anything extra to be added.</dd></div>
+<div><dt>Ten output styles</dt><dd>Realistic image, black and white, watercolour, oil painting, pencil sketch, cartoon, anime, pixel art, 3D render and comic book.</dd></div>
+<div><dt>Personal art gallery</dt><dd>Your drawing and the generated image are kept side by side in your own browser, ready to download.</dd></div>
+<div><dt>Built-in tutorial</dt><dd>The Brush Up tab explains every control for first-time users.</dd></div></dl></div></section>
+<section class="sec" id="tech"><h2>Technology</h2><div class="sec-body"><dl class="defs">
+<div><dt>Hand tracking</dt><dd>MediaPipe Hands by Google</dd></div><div><dt>Voice input</dt><dd>Web Speech API, built into the browser</dd></div>
+<div><dt>Drawing</dt><dd>HTML5 Canvas</dd></div><div><dt>Image generation</dt><dd>Free online AI image services</dd></div>
+<div><dt>Storage</dt><dd>Your own browser (IndexedDB)</dd></div><div><dt>Front end</dt><dd>Plain JavaScript and CSS, with no installation</dd></div></dl></div></section>
+<section class="sec" id="tips"><h2>For the best results</h2><div class="sec-body"><ul class="plain">
+<li>Sit in a well-lit room. Hand tracking becomes less accurate in low light.</li><li>Use a plain, uncluttered background behind your hand.</li>
+<li>Keep your whole hand inside the webcam frame, about an arm's length from the screen.</li><li>Use Chrome, Edge or Safari. Voice input depends on browser support.</li></ul></div></section>
+<section class="sec" id="roadmap"><h2>Roadmap</h2><div class="sec-body"><dl class="defs">
+<div><dt>Sketch-guided AI</dt><dd>Your drawing becomes the structural blueprint for the generated image.</dd></div>
+<div><dt>Multi-hand collaboration</dt><dd>Two people drawing on one canvas in real time.</dd></div>
+<div><dt>3D air drawing</dt><dd>Depth sensing for volumetric sketches.</dd></div>
+<div><dt>Animated output</dt><dd>Short video clips generated from a sketch.</dd></div>
+<div><dt>Accessibility mode</dt><dd>Adapted gestures for users with limited mobility.</dd></div></dl></div></section>
+<section class="sec cta" id="begin"><h2>Begin drawing</h2><div class="sec-body"><p>Open the app, allow the camera, and read the Brush Up tutorial if this is your first visit.</p><button class="btn primary" data-start>Get Started</button></div></section>
+<footer class="sitefoot">AirBrush &nbsp;·&nbsp; Created by Vaibhavi Jadhav</footer>
+</div>
+
 <!-- ===== APP ===== -->
   <section id="app" hidden>
 
@@ -32,6 +67,7 @@
       <div class="brand">AirBrush</div>
       <nav class="menubar">
         <button id="tabDraw" class="tab active">Draw</button>
+        <button id="tabTutorial" class="tab">Brush Up</button>
         <button id="tabAlbum" class="tab">Art gallery</button>
       </nav>
     </header>
@@ -39,31 +75,11 @@
     <!-- ---------- DRAW VIEW ---------- -->
     <div id="drawView">
       <div class="workspace">
-        <aside class="tools" aria-label="Drawing tools">
-          <fieldset>
-            <legend>Tools</legend>
-            <div class="toolgrid">
-              <button id="penBtn" class="tool active" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M20 4L11.5 12.5"/><path d="M10 12l3 3c-.3 2.6-2.6 4.6-8 5 .4-5.2 2.4-7.4 5-8z"/></svg>Brush</button>
-              <button id="eraserBtn" class="tool" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4.5 14.5L13 5.5l5.5 5.5-7 8H8z"/><path d="M9 10.5l5.5 5.5"/><path d="M11 19.5h9"/></svg>Eraser</button>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>Edit</legend>
-            <div class="toolgrid">
-              <button id="undoBtn" class="tool"><svg viewBox="0 0 24 24"><path d="M9 5.5L4.5 10 9 14.5"/><path d="M5 10h9a4.5 4.5 0 010 9H11"/></svg>Undo</button>
-              <button id="clearBtn" class="tool"><svg viewBox="0 0 24 24"><path d="M6.5 3.5H14l4 4v13H6.5z"/><path d="M14 3.5v4h4"/></svg>Clear</button>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>Size: <span id="sizeVal">4</span></legend>
-            <input type="range" id="size" min="1" max="10" value="4" step="1" aria-label="Brush and eraser size" />
-          </fieldset>
-
-          <fieldset>
-            <legend>Color</legend>
-            <div id="swatches" class="swatches" role="group" aria-label="Color palette"></div>
+        <div class="tools ribbon" role="toolbar" aria-label="Drawing tools">
+          <div class="grp"><div class="grp-body"><button id="undoBtn" class="tool"><svg viewBox="0 0 24 24"><path d="M9 5.5L4.5 10 9 14.5"/><path d="M5 10h9a4.5 4.5 0 010 9H11"/></svg>Undo</button>
+              <button id="clearBtn" class="tool"><svg viewBox="0 0 24 24"><path d="M6.5 3.5H14l4 4v13H6.5z"/><path d="M14 3.5v4h4"/></svg>Clear</button></div><span class="grp-name">Edit</span></div>
+          <div class="grp"><div class="grp-body"><input type="range" id="size" min="1" max="10" value="4" step="1" aria-label="Brush and eraser size" /></div><span class="grp-name">Size: <span id="sizeVal">4</span></span></div>
+          <div class="grp"><div class="grp-body"><div id="swatches" class="swatches" role="group" aria-label="Color palette"></div>
             <div class="custom-wrap">
               <button id="wheelBtn" class="tool" aria-haspopup="true"><span id="wheelDot" class="wheel-dot"></span>Custom color</button>
               <div id="wheelPop" class="wheel-pop" hidden>
@@ -71,17 +87,12 @@
                 <label class="bright">Brightness <input type="range" id="bright" min="10" max="100" value="100" /></label>
                 <div class="hexrow"><span id="wheelPrev"></span><input id="hexIn" maxlength="7" value="#ee3b45" spellcheck="false" aria-label="Hex color code" /></div>
               </div>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>Drawing</legend>
-            <div id="drawState" class="state on" role="status"><i></i><span id="drawStateText">Drawing active</span></div>
+            </div></div><span class="grp-name">Colors</span></div>
+          <div class="grp end"><div class="grp-body"><div id="drawState" class="state on" role="status"><i></i><span id="drawStateText">Drawing active</span></div>
             <button id="doneBtn" class="btn primary wide">Done drawing</button>
-            <button id="resumeBtn" class="btn wide" disabled>Resume drawing</button>
-            <p id="sideMsg" class="side-msg" aria-live="polite"></p>
-          </fieldset>
-        </aside>
+            <button id="resumeBtn" class="btn wide" disabled>Resume drawing</button></div><span class="grp-name">Drawing</span></div>
+        </div>
+        <p id="sideMsg" class="side-msg" aria-live="polite"></p>
 
         <div class="main-col">
           <main class="stage">
@@ -153,6 +164,64 @@
       <div id="albumGrid" class="gallery"></div>
     </div>
 
+<div id="tutorialView" hidden><article class="manual">
+<h2>Brush Up</h2><p class="lead">A first-time guide to drawing in the air. Read it once and you will know every control in AirBrush.</p>
+
+<h3>Before you begin</h3>
+<ul><li>Use Chrome, Edge or Safari on a computer with a webcam.</li><li>When the browser asks, choose <em>Allow</em> for the camera. The microphone is needed only if you want to describe your drawing by voice.</li>
+<li>Sit in a well-lit room, with a plain background behind you and your hand about an arm's length from the screen.</li></ul>
+
+<h3>1. Raise your hand</h3>
+<p>Open the <strong>Draw</strong> tab and raise one hand in front of the webcam, with your palm toward the camera and your fingers visible inside the <strong>Webcam</strong> box. A fine skeleton of coloured lines and joints appears over your hand. This means the camera can see it.</p>
+<p>A small circle follows your fingertip in both the Webcam box and the Canvas box. It is your cursor. The word at the bottom right of the page shows what the app is doing: <strong>Ready</strong>, <strong>Drawing</strong>, <strong>Erasing</strong> or <strong>Paused</strong>.</p>
+
+<h3>2. The three gesture rules</h3>
+<table><thead><tr><th>Gesture</th><th>How to make it</th><th>What happens</th></tr></thead><tbody>
+<tr><td>Index finger alone</td><td>Raise only your index finger and fold the others.</td><td><strong>Draw.</strong> The cursor takes the colour of your brush, and your fingertip paints on the canvas.</td></tr>
+<tr><td>Index and middle finger</td><td>Raise those two fingers together and fold the other two.</td><td><strong>Erase.</strong> The cursor turns red and removes what it touches. The eraser is wider than the brush.</td></tr>
+<tr><td>Whole palm</td><td>Open your hand with all four fingers raised.</td><td><strong>Nothing.</strong> Drawing pauses. Use it to rest or to move your hand without leaving a mark.</td></tr></tbody></table>
+<p class="note">Any other hand shape, such as a fist or three fingers, is ignored and the app simply shows <strong>Ready</strong>. Only the two gestures above ever change the canvas.</p>
+
+<h3>3. Your first drawing, step by step</h3>
+<ol><li>Choose a colour and a size from the ribbon at the top (see the next section).</li>
+<li>Raise your hand, then show your palm. The app pauses, so nothing is drawn while you get ready.</li>
+<li>Fold all fingers except your index finger. Move it slowly and the line appears on the Canvas box. The webcam works like a mirror, so move your hand the way you would in front of a mirror.</li>
+<li>To move to a new spot without drawing, show your palm, reposition, then raise your index finger again.</li>
+<li>To fix a mistake, raise your index and middle finger together and move over it, or press <strong>Undo</strong>.</li>
+<li>When you are happy, press <strong>Done drawing</strong>.</li></ol>
+
+<h3>4. The ribbon, control by control</h3>
+<dl>
+<dt>Undo</dt><dd>Removes your most recent stroke. Press it again to remove the one before.</dd>
+<dt>Clear</dt><dd>Wipes the whole canvas after you confirm. This cannot be undone.</dd>
+<dt>Size</dt><dd>A slider from 1 to 10. It applies from your next stroke and also changes how wide the eraser is.</dd>
+<dt>Colour swatches</dt><dd>Click any of the fifteen squares to paint in that colour. Strokes you have already drawn keep their own colours.</dd>
+<dt>Custom color</dt><dd>Opens a colour wheel. Click the wheel to pick a hue, slide <em>Brightness</em> to make it lighter or darker, or type a hex code such as #ee3b45 in the box. Press Esc to close it.</dd>
+<dt>Drawing status</dt><dd>Reads <em>Drawing active</em> when your hand can paint and <em>Drawing paused</em> when it cannot, for example after Done drawing or while you are on another tab.</dd>
+<dt>Done drawing</dt><dd>Saves your sketch and opens the next stage. You need at least one stroke first.</dd>
+<dt>Resume drawing</dt><dd>Brings you back to the same canvas, colour and size so that you can keep drawing.</dd></dl>
+
+<h3>5. After you finish drawing</h3>
+<ol><li>Your drawing appears on the left. On the right, you can name it in <strong>What have you drawn?</strong> This is optional, but it helps the image match your shapes and colours.</li>
+<li>In <strong>Would you like anything added?</strong> you can ask for extras, such as "add a red apple on the tree". This is also optional.</li>
+<li>Prefer to speak? Press the microphone button next to either box, allow the microphone, and say your description.</li>
+<li>Choose an <strong>output style</strong>: realistic, black and white, watercolour, oil painting, pencil sketch, cartoon, anime, pixel art, 3D render or comic book.</li>
+<li>Press <strong>Generate image</strong> and wait. If a message says something went wrong, simply press it again.</li>
+<li>Press <strong>Add to gallery</strong> to keep the result.</li></ol>
+
+<h3>6. The Art gallery</h3>
+<p>Each saved piece shows your drawing and the generated image side by side. Use <strong>Download</strong> to save either one to your computer, or <strong>Delete</strong> to remove the piece. The gallery is stored in this browser only, so clearing the site's data or switching browsers will remove it from view.</p>
+
+<h3>If something does not work</h3>
+<dl>
+<dt>The hand is not detected</dt><dd>Add light, use a plainer background, and keep your whole hand inside the Webcam box.</dd>
+<dt>Nothing is drawn</dt><dd>Check that the status says <em>Drawing active</em>. If it says paused, press Resume drawing. Also check that you are showing only your index finger and not a palm.</dd>
+<dt>Stray marks appear</dt><dd>Show your palm before you move your hand to a new place.</dd>
+<dt>The camera is blocked</dt><dd>Click the camera icon in the browser's address bar, allow access, and reload the page.</dd>
+<dt>Voice does not work</dt><dd>Use Chrome, Edge or Safari, and allow the microphone when asked.</dd></dl>
+<p class="end"><button id="tutGo" class="btn primary">Start drawing</button></p>
+</article></div>
+
     <footer class="statusbar">
       <div id="status">Starting camera…</div>
       <div id="modeLabel" class="cell">Draw</div>
@@ -171,7 +240,7 @@
 
   
 
-  <script src="script.js?v=17"></script>
+  <script src="script.js?v=18"></script>
 </body>
 </html>
 
