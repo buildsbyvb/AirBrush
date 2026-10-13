@@ -291,3 +291,9 @@ textarea,#hexIn{font:400 17px var(--sans)}
 .sitefoot{max-width:68rem;margin:0 auto;padding:36px clamp(20px,5vw,56px) 56px;border-top:1px solid var(--line);color:var(--muted);font-size:18px}
 @media(max-width:800px){.sec{grid-template-columns:1fr;padding:60px 20px}.sn-links{display:none}}
 #site .btn.primary{font:400 24px/1 var(--sans);padding:12px 36px;letter-spacing:.03em}
+
+/* feedback form */
+.fb{display:grid;gap:18px;max-width:36rem;position:relative}.fb label{display:block;font-size:21px;font-style:italic;margin-bottom:4px}
+.fb input,.fb textarea{width:100%;font:400 20px/1.4 var(--sans);color:#fff;background:rgba(255,255,255,.03);border:1px solid var(--line2);border-radius:2px;padding:10px 14px;resize:vertical}
+.fb textarea{min-height:150px}.fb input:focus,.fb textarea:focus{outline:0;border-color:var(--pink)}.fb .hp{position:absolute;left:-9999px;width:1px;height:1px}
+#fbMsg{color:var(--muted);min-height:1.6em;margin:0}

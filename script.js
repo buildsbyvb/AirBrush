@@ -986,3 +986,32 @@ async function renderGallery() {
   addEventListener("scroll", upd, { passive: true }); upd();
   document.querySelectorAll("[data-start]").forEach((b) => (b.onclick = () => $("startBtn").click()));
 })();
+
+// ---------- feedback form ----------
+// To receive feedback: make a free form at formspree.io and paste its address below (https://formspree.io/f/xxxxxxx),
+// or put your email in FEEDBACK_EMAIL to open the visitor's email app instead.
+const FEEDBACK_ENDPOINT = "", FEEDBACK_EMAIL = "";
+(function () {
+  const f = $("fbForm"), msg = $("fbMsg"), btn = $("fbBtn");
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    if (f.company.value) return;   // hidden field: only bots fill it
+    const message = f.fbText.value.trim();
+    if (!message) { msg.textContent = "Please write your feedback first."; return; }
+    const data = { name: f.fbName.value.trim(), email: f.fbEmail.value.trim(), message };
+    if (FEEDBACK_ENDPOINT) {
+      btn.disabled = true; msg.textContent = "Sending…";
+      try {
+        const r = await fetch(FEEDBACK_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(data) });
+        if (!r.ok) throw new Error("send failed");
+        f.reset(); msg.textContent = "Thank you. Your feedback has been sent.";
+      } catch (err) { msg.textContent = "Sorry, your feedback could not be sent. Please try again."; }
+      btn.disabled = false; return;
+    }
+    if (FEEDBACK_EMAIL) {
+      location.href = "mailto:" + FEEDBACK_EMAIL + "?subject=" + encodeURIComponent("AirBrush feedback") + "&body=" + encodeURIComponent((data.name ? "Name: " + data.name + "\n" : "") + (data.email ? "Email: " + data.email + "\n" : "") + "\n" + message);
+      msg.textContent = "Your email app should open with the message ready to send."; return;
+    }
+    msg.textContent = "Feedback is not switched on yet. Please try again soon.";
+  };
+})();

@@ -4,10 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AirBrush</title>
+  <meta name="description" content="Draw in the air with your hand through a webcam, then turn your drawing into AI artwork in the style you choose." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=18" />
+  <link rel="stylesheet" href="style.css?v=19" />
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
 </head>
 <body id="top">
@@ -21,42 +22,51 @@
   <section id="landing">
 <div class="welcome">
 <h1>AirBrush</h1>
-<button id="startBtn" class="btn primary">Get Started</button>
+<button id="startBtn" class="btn primary">Pick Up the Brush</button>
 </div>
 </section>
 
 <div id="site">
-<nav id="sitenav" aria-label="Site"><a class="sn-brand" href="#top">AirBrush</a><div class="sn-links"><a href="#about">About</a><a href="#how">How it works</a><a href="#features">Features</a><a href="#tech">Technology</a><a href="#roadmap">Roadmap</a></div><button class="btn" data-start>Get started</button></nav>
+<nav id="sitenav" aria-label="Site"><a class="sn-brand" href="#top">AirBrush</a><div class="sn-links"><a href="#about">About</a><a href="#how">How it works</a><a href="#features">Features</a><a href="#tech">Technology</a><a href="#roadmap">Roadmap</a><a href="#feedback">Feedback</a></div><button class="btn" data-start>Pick Up the Brush</button></nav>
 <section class="sec" id="about"><h2>About AirBrush</h2><div class="sec-body">
 <p>Digital art has long depended on hardware. Styluses and drawing tablets cost thousands of rupees, most drawing software must be installed before it can be used, and the way we create on a screen has barely changed since the mouse.</p>
 <p class="pull">What if your hand were the drawing tool?</p>
 <p>AirBrush is a browser-based creative platform that answers that question. It follows your hand through the webcam so that you can draw in mid-air, lets you describe your idea by voice or in writing, and turns your drawing into finished artwork with artificial intelligence. There is nothing to download, no special equipment to buy, and no cost to use.</p></div></section>
 <section class="sec" id="how"><h2>How it works</h2><div class="sec-body"><ol class="steps">
-<li><h3>I. Open your webcam</h3><p>The camera tracks 21 points on your hand in real time. Everything is processed in your browser, and no special hardware is required.</p></li>
+<li><h3>I. Open your webcam</h3><p>The camera tracks 21 points on your hand in real time. Hand tracking runs inside your browser, and a standard webcam is all you need.</p></li>
 <li><h3>II. Draw in the air</h3><p>Raise one finger to paint, two fingers to erase, and an open palm to pause. Strokes appear on the canvas as you move.</p></li>
-<li><h3>III. Generate with AI</h3><p>Describe what you have drawn, in words or by voice, choose a style, and receive finished artwork. Save your drawing and the result together in your gallery.</p></li></ol></div></section>
+<li><h3>III. Generate with AI</h3><p>Choose a style, add an optional description by typing or speaking, and the AI redraws your actual sketch as finished artwork. Save your drawing and the result together in your gallery.</p></li></ol></div></section>
 <section class="sec" id="features"><h2>Features</h2><div class="sec-body"><dl class="defs">
 <div><dt>Real-time hand tracking</dt><dd>A fine skeleton follows your hand on the webcam so you can see exactly what the camera sees.</dd></div>
 <div><dt>Gesture controls</dt><dd>Draw, erase and pause using only the position of your fingers.</dd></div>
 <div><dt>Colours and sizes</dt><dd>Fifteen ready-made colours, a custom colour wheel with a hex code field, and ten brush sizes.</dd></div>
-<div><dt>Voice or written description</dt><dd>Tell the AI what you drew by typing or speaking, and ask for anything extra to be added.</dd></div>
+<div><dt>Sketch-guided AI</dt><dd>Your drawing is sent to the AI as its blueprint, so the result keeps your shapes, proportions, number of parts and colours.</dd></div>
+<div><dt>Voice or written description</dt><dd>Name what you drew and ask for extras around it, by typing or by speaking.</dd></div>
 <div><dt>Ten output styles</dt><dd>Realistic image, black and white, watercolour, oil painting, pencil sketch, cartoon, anime, pixel art, 3D render and comic book.</dd></div>
 <div><dt>Personal art gallery</dt><dd>Your drawing and the generated image are kept side by side in your own browser, ready to download.</dd></div>
 <div><dt>Built-in tutorial</dt><dd>The Brush Up tab explains every control for first-time users.</dd></div></dl></div></section>
 <section class="sec" id="tech"><h2>Technology</h2><div class="sec-body"><dl class="defs">
-<div><dt>Hand tracking</dt><dd>MediaPipe Hands by Google</dd></div><div><dt>Voice input</dt><dd>Web Speech API, built into the browser</dd></div>
-<div><dt>Drawing</dt><dd>HTML5 Canvas</dd></div><div><dt>Image generation</dt><dd>Free online AI image services</dd></div>
-<div><dt>Storage</dt><dd>Your own browser (IndexedDB)</dd></div><div><dt>Front end</dt><dd>Plain JavaScript and CSS, with no installation</dd></div></dl></div></section>
+<div><dt>Hand tracking</dt><dd>MediaPipe Hands by Google, running in your browser</dd></div><div><dt>Voice input</dt><dd>Web Speech API, built into Chrome, Edge and Safari</dd></div>
+<div><dt>Drawing</dt><dd>HTML5 Canvas</dd></div>
+<div><dt>Image generation</dt><dd>Cloudflare Workers AI as the fast service, with the free AI Horde community network as a backup. Both receive your sketch, using image-to-image generation and scribble structure control on the backup.</dd></div>
+<div><dt>Storage</dt><dd>Your gallery is saved in your own browser (IndexedDB)</dd></div>
+<div><dt>Front end</dt><dd>Plain JavaScript and CSS, with no installation</dd></div>
+<div><dt>Hosting</dt><dd>GitHub Pages</dd></div></dl></div></section>
 <section class="sec" id="tips"><h2>For the best results</h2><div class="sec-body"><ul class="plain">
 <li>Sit in a well-lit room. Hand tracking becomes less accurate in low light.</li><li>Use a plain, uncluttered background behind your hand.</li>
 <li>Keep your whole hand inside the webcam frame, about an arm's length from the screen.</li><li>Use Chrome, Edge or Safari. Voice input depends on browser support.</li></ul></div></section>
 <section class="sec" id="roadmap"><h2>Roadmap</h2><div class="sec-body"><dl class="defs">
-<div><dt>Sketch-guided AI</dt><dd>Your drawing becomes the structural blueprint for the generated image.</dd></div>
 <div><dt>Multi-hand collaboration</dt><dd>Two people drawing on one canvas in real time.</dd></div>
 <div><dt>3D air drawing</dt><dd>Depth sensing for volumetric sketches.</dd></div>
 <div><dt>Animated output</dt><dd>Short video clips generated from a sketch.</dd></div>
 <div><dt>Accessibility mode</dt><dd>Adapted gestures for users with limited mobility.</dd></div></dl></div></section>
-<section class="sec cta" id="begin"><h2>Begin drawing</h2><div class="sec-body"><p>Open the app, allow the camera, and read the Brush Up tutorial if this is your first visit.</p><button class="btn primary" data-start>Get Started</button></div></section>
+<section class="sec" id="feedback"><h2>Your feedback</h2><div class="sec-body"><p>AirBrush is still growing. Tell us what you would change, which features you would like to see, or anything else on your mind.</p>
+<form id="fbForm" class="fb" novalidate><input class="hp" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
+<div><label for="fbName">Name (optional)</label><input id="fbName" name="fbName" autocomplete="name"></div>
+<div><label for="fbEmail">Email, if you would like a reply (optional)</label><input id="fbEmail" name="fbEmail" type="email" autocomplete="email"></div>
+<div><label for="fbText">What would you like to change or add?</label><textarea id="fbText" name="fbText" maxlength="2000" required></textarea></div>
+<div><button id="fbBtn" class="btn" type="submit">Send feedback</button></div><p id="fbMsg" role="status" aria-live="polite"></p></form></div></section>
+<section class="sec cta" id="begin"><h2>Begin drawing</h2><div class="sec-body"><p>Open the app, allow the camera, and read the Brush Up tutorial if this is your first visit.</p><button class="btn primary" data-start>Pick Up the Brush</button></div></section>
 <footer class="sitefoot">AirBrush &nbsp;·&nbsp; Created by Vaibhavi Jadhav</footer>
 </div>
 
@@ -206,7 +216,7 @@
 <li>In <strong>Would you like anything added?</strong> you can ask for extras, such as "add a red apple on the tree". This is also optional.</li>
 <li>Prefer to speak? Press the microphone button next to either box, allow the microphone, and say your description.</li>
 <li>Choose an <strong>output style</strong>: realistic, black and white, watercolour, oil painting, pencil sketch, cartoon, anime, pixel art, 3D render or comic book.</li>
-<li>Press <strong>Generate image</strong> and wait. If a message says something went wrong, simply press it again.</li>
+<li>Press <strong>Generate image</strong> and keep the tab open. The fast service usually takes 5 to 20 seconds. If it is unavailable, a free backup service takes over and can take from 30 seconds to a few minutes. If an error appears, simply press the button again.</li>
 <li>Press <strong>Add to gallery</strong> to keep the result.</li></ol>
 
 <h3>6. The Art gallery</h3>
@@ -240,6 +250,7 @@
 
   
 
-  <script src="script.js?v=18"></script>
+  <script src="script.js?v=19"></script>
 </body>
 </html>
+
