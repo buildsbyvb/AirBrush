@@ -492,22 +492,10 @@ async function startApp() {
   loop();
 }
 
-// ---------- background video: muted, looping, inline; paused for reduced motion; restarted after a blocked autoplay ----------
-(function () {
-  const v = $("bgVideo");
-  if (!v) return;
-  v.muted = true; v.defaultMuted = true; v.playsInline = true;
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { v.removeAttribute("autoplay"); v.pause(); return; }
-  const go = () => { const p = v.play(); if (p && p.catch) p.catch(() => {}); };
-  go();
-  ["pointerdown", "keydown", "touchstart"].forEach((ev) => addEventListener(ev, () => { if (v.paused) go(); }, { passive: true }));
-  document.addEventListener("visibilitychange", () => { if (!document.hidden && v.paused) go(); });
-})();
-
 // ---------- front page: light paint strokes that follow the mouse and fade away ----------
 (function () {
   const cv = $("fx"), ctx = cv.getContext("2d"), landing = $("landing");
-  const HUES = [32, 255, 40, 268];              // amber, violet, gold, lavender: the colours of the background video
+  const HUES = [265, 330, 38, 175];              // violet, pink, amber, teal: the aurora colours
   const LIFE = 1700;                           // ms until a stroke has fully faded
   const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let strokes = [], cur = null, target = null, sm = null, n = 0, dpr = 1;
