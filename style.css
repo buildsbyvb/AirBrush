@@ -312,3 +312,97 @@ textarea,#hexIn{font:400 17px var(--sans)}
 #app .wheel-pop{top:auto;bottom:-10px;left:auto;right:calc(100% + 24px);width:240px}
 #app .tools .side-msg{padding:0 18px 12px;font-size:17px}
 @media(max-width:800px){#app .workspace{flex-direction:column;align-items:stretch}#app .tools.ribbon{width:100%}#app .wheel-pop{right:auto;left:0;top:calc(100% + 10px);bottom:auto}}
+
+
+/* ================= v21: soft pastel studio theme (colours and surfaces only; layout and behaviour untouched) ================= */
+:root{--bg:#fbf8f4;--ink:#3b3350;--muted:#7b7190;--line:rgba(110,90,140,.16);--line2:rgba(110,90,140,.32);
+--pink:#d79db0;--blue:#9dbfdc;--lav:#b9a9de;--sage:#9cbb9f;--peach:#ecbc98;--rose-deep:#b4627f;--c:#9dbfdc;--p:#d79db0;
+--glass:rgba(255,255,255,.58);--edge:linear-gradient(120deg,#e9b6c4,#c7b8e6 45%,#a9cbe6 75%,#bfdcc3);
+--cur:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='50' viewBox='0 0 80 90'%3E%3Cg transform='translate(14,2) rotate(-35)' stroke='%234a3f5c' stroke-width='1.1' stroke-linejoin='round'%3E%3Cpath d='M-10 9Q-12 0 0 0Q12 0 10 9Z' fill='%23e0463c'/%3E%3Crect x='-9' y='7' width='18' height='18' fill='%23eadfc4'/%3E%3Cpath d='M-6 9V24M-2 9V24M2 9V24M6 9V24' stroke='%238a7550' stroke-width='.6'/%3E%3Cpath d='M-9 10Q-5 6 0 10T9 10V13Q4 9 0 13T-9 13Z' fill='%23e0463c' stroke='none'/%3E%3Crect x='-10' y='25' width='20' height='8' fill='%239aa3ab'/%3E%3Cpath d='M-8 33H8L5 62Q4 80 0 85Q-4 80-5 62Z' fill='%239a5230'/%3E%3Ccircle cx='0' cy='76' r='1.8' fill='%23000' stroke='none'/%3E%3C/g%3E%3C/svg%3E") 8 1,auto;--cur-hov:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='50' viewBox='0 0 80 90'%3E%3Cg transform='translate(16,2) rotate(-22)' stroke='%234a3f5c' stroke-width='1.1' stroke-linejoin='round'%3E%3Cpath d='M-10 9Q-12 0 0 0Q12 0 10 9Z' fill='%23deaab6'/%3E%3Crect x='-9' y='7' width='18' height='18' fill='%23eadfc4'/%3E%3Cpath d='M-6 9V24M-2 9V24M2 9V24M6 9V24' stroke='%238a7550' stroke-width='.6'/%3E%3Cpath d='M-9 10Q-5 6 0 10T9 10V13Q4 9 0 13T-9 13Z' fill='%23deaab6' stroke='none'/%3E%3Crect x='-10' y='25' width='20' height='8' fill='%239aa3ab'/%3E%3Cpath d='M-8 33H8L5 62Q4 80 0 85Q-4 80-5 62Z' fill='%239a5230'/%3E%3Ccircle cx='0' cy='76' r='1.8' fill='%23000' stroke='none'/%3E%3C/g%3E%3C/svg%3E") 9 1,auto}
+html{background:#fbf8f4}
+body{background:transparent;color:var(--ink)}
+
+/* watercolour wash + paper grain, fixed behind everything */
+body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+background:
+url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .3 0 0 0 0 .4 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+radial-gradient(52vmax 44vmax at 6% 4%,rgba(247,214,222,.95),transparent 62%),
+radial-gradient(48vmax 42vmax at 96% 8%,rgba(222,219,246,.95),transparent 62%),
+radial-gradient(56vmax 46vmax at 92% 96%,rgba(212,230,240,.95),transparent 62%),
+radial-gradient(46vmax 40vmax at 4% 94%,rgba(250,228,210,.95),transparent 62%),
+radial-gradient(40vmax 34vmax at 50% 50%,rgba(226,238,226,.55),transparent 70%),
+linear-gradient(#fcf9f5,#faf5f2)}
+
+/* the drifting brush strokes: deepen them a little so pastel shows on a light page */
+#paint canvas{mix-blend-mode:multiply;filter:saturate(2.4) brightness(.9)}
+
+/* lettering */
+h1,h2,h3,legend,.brand,.box-title,.pair figcaption,.state span,.cell,.dlg-body p,.sn-brand,.sn-links a{color:var(--ink);-webkit-text-fill-color:var(--ink)}
+.msg,.hint,.side-msg,.mic-msg,#status,.piece-foot,.bright,h3 small{color:var(--muted);-webkit-text-fill-color:var(--muted)}
+em{background:none;color:var(--rose-deep);-webkit-text-fill-color:var(--rose-deep)}
+.welcome h1{background-image:linear-gradient(100deg,#8672ad 0%,#c4849e 45%,#7aa5c8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;padding:0 .06em .12em;filter:drop-shadow(0 10px 30px rgba(180,130,170,.22))}
+.brand{color:var(--rose-deep);-webkit-text-fill-color:var(--rose-deep)}
+
+/* buttons, tabs, chips */
+.btn,.tool,.tab,.chip{--fill:rgba(255,255,255,.7);color:var(--ink);-webkit-text-fill-color:var(--ink);border-color:var(--line2)}
+.btn:hover,.tool:hover,.chip:hover,.tab:hover{--fill:rgba(255,255,255,.95);border-color:var(--pink);box-shadow:0 6px 18px rgba(170,130,170,.18)}
+.tool.active,.chip.active,.tab.active{--fill:rgba(215,157,176,.2);border-color:var(--pink);box-shadow:none}
+.btn.primary{--fill:rgba(255,255,255,.82);box-shadow:0 8px 26px rgba(170,130,180,.2)}
+.btn.primary:hover{--fill:#fff;box-shadow:0 12px 32px rgba(170,130,180,.3)}
+#app .tool svg,#app .mic svg,.tool svg,.mic svg{stroke:var(--ink)}
+#app .tab.active{--fill:transparent;border-bottom-color:var(--rose-deep)}
+#app .tab:hover{border-bottom-color:var(--pink)}
+.mic.active{color:#c0566b;border-color:#c0566b}
+:focus-visible{outline-color:var(--lav)}
+
+/* surfaces: frosted white cards with a pastel gradient hairline */
+.tools,#finish,.piece,.manual{background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 18px 50px rgba(150,120,170,.14)}
+.manual{border-color:var(--line)}
+.btn.primary::before,.tools::before,#finish::before,.piece::before,.dialog::before{background:var(--edge)}
+.tools::before,#finish::before,.piece::before,.dialog::before{opacity:.9}
+fieldset,fieldset:last-of-type{background:rgba(255,255,255,.45)}
+.menubar{background:rgba(255,255,255,.55)}
+.statusbar{background:rgba(252,248,246,.78);border-top-color:var(--line)}
+.statusbar::before{background:var(--sage)}
+.cell{border-color:var(--line2)}
+.frame{background:#efe8f1;box-shadow:0 16px 40px rgba(150,120,170,.2)}
+.frame.white{background:#fff}
+.boxes .box .frame::after{background:var(--pink)}.boxes .box:nth-child(2) .frame::after{background:var(--blue)}
+.finish-left img,#resultImg,.pair img{box-shadow:0 0 0 1px var(--line2),0 14px 34px rgba(150,120,170,.2)}
+.state.on{color:#4f7c55;border-color:var(--sage)}.state.off{color:#b0693a;border-color:var(--peach)}
+.state.on i{background:var(--sage)}.state.off i{background:var(--peach)}
+.swatch{box-shadow:inset 0 0 0 1px rgba(0,0,0,.14)}.swatch.active{box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--ink)}
+#wheelPrev{border-color:#fff;box-shadow:0 0 0 1px var(--line2)}
+.wheel-pop{background:rgba(255,255,255,.97);border-color:var(--line2);box-shadow:0 20px 50px rgba(150,120,170,.28)}
+
+/* inputs */
+textarea,#hexIn,.fb input,.fb textarea{color:var(--ink);background:rgba(255,255,255,.78);border-color:var(--line2)}
+textarea::placeholder{color:rgba(90,75,115,.45)}
+textarea:focus,.fb input:focus,.fb textarea:focus{border-color:var(--lav);box-shadow:0 0 0 3px rgba(185,169,222,.25)}
+
+/* dialog */
+.overlay{background:rgba(90,70,115,.26)}
+.dialog{background:rgba(255,252,250,.94);box-shadow:0 30px 80px rgba(110,80,140,.28)}
+.dlg-icon{color:var(--rose-deep);border-color:var(--pink)}
+
+/* front page */
+#sitenav{background:rgba(251,247,243,.88)}
+.sn-links a:hover{border-bottom-color:var(--pink)}
+.sec{border-top-color:var(--line)}
+.sec .pull,.manual .note{border-left-color:var(--pink)}
+.sitefoot{color:var(--muted);border-top-color:var(--line)}
+.manual strong{border-bottom-color:var(--pink)}
+
+/* gallery-style double hairline frame and a soft tagline on the landing screen */
+#landing::before{content:"";position:absolute;inset:22px;border:1px solid var(--line2);border-radius:2px;pointer-events:none;box-shadow:0 0 0 7px rgba(255,255,255,.28),0 0 0 8px var(--line)}
+.welcome h1{order:1}.welcome .btn{order:3}
+.welcome::after{content:"Draw in the air. Let it become art.";order:2;font:italic 400 clamp(20px,2.4vw,28px)/1.4 "Instrument Serif","Times New Roman",Georgia,serif;letter-spacing:.04em;color:var(--muted);padding-bottom:22px;
+background:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='14' viewBox='0 0 260 14'%3E%3Cdefs%3E%3ClinearGradient id='g'%3E%3Cstop offset='0' stop-color='%23e9b6c4'/%3E%3Cstop offset='.5' stop-color='%23c7b8e6'/%3E%3Cstop offset='1' stop-color='%23a9cbe6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M4 8C40 2 70 12 110 7S190 2 256 8' fill='none' stroke='url(%23g)' stroke-width='3.2' stroke-linecap='round'/%3E%3C/svg%3E") center bottom/230px 12px no-repeat}
+@media(max-width:800px){#landing::before{inset:12px}}
+
+/* sliders: soft pastel track and round thumb */
+input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;height:24px}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:linear-gradient(90deg,#ecc3cf,#cdbfea,#b4d2ea)}
+input[type=range]::-moz-range-track{height:4px;border-radius:4px;background:linear-gradient(90deg,#ecc3cf,#cdbfea,#b4d2ea)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;margin-top:-6px;border-radius:50%;background:#fff;border:2px solid var(--rose-deep);box-shadow:0 2px 6px rgba(120,80,130,.3)}
+input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid var(--rose-deep);box-shadow:0 2px 6px rgba(120,80,130,.3)}
